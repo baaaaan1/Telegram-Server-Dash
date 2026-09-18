@@ -28,3 +28,4 @@ Thumbs.db
 .dockerignore
 .kilo
 TASKS.md
+deploy.logs
