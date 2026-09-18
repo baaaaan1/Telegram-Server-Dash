@@ -55,14 +55,14 @@ class SSHConnection:
 
     async def run(self, command: str, timeout: float | None = None) -> CommandResult:
         """Execute a command on the remote server."""
-        if self._conn is None:
-            await self.connect()
-
         timeout = timeout or self._server.command_timeout
         import time
 
         start = time.monotonic()
         try:
+            if self._conn is None:
+                await self.connect()
+            assert self._conn is not None
             result = await asyncio.wait_for(self._conn.run(command, check=False), timeout=timeout)
             duration = time.monotonic() - start
             return CommandResult(
@@ -92,7 +92,8 @@ class SSHConnection:
         """Close the SSH connection."""
         async with self._lock:
             if self._conn is not None:
-                await self._conn.close()
+                self._conn.close()
+                await self._conn.wait_closed()
                 self._conn = None
 
     async def __aenter__(self) -> SSHConnection:
@@ -141,6 +142,9 @@ class LocalConnection:
         except Exception as e:
             duration = time.monotonic() - start
             return CommandResult(stdout="", stderr=str(e), exit_code=1, duration=duration)
+
+    async def close(self) -> None:
+        """Match the SSH connection lifecycle interface."""
 
 
 def create_ssh_pool(servers: dict[str, ServerConfig]) -> dict[str, SSHConnection | LocalConnection]:

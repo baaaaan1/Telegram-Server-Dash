@@ -63,6 +63,12 @@ async def cmd_help(message: Message, bot: Bot) -> None:
     await message.answer(help_text, reply_markup=make_home_keyboard())
 
 
+@router.message(F.text == Messages.MENU_HELP)
+async def btn_help(message: Message, bot: Bot) -> None:
+    """Handle the Help menu button."""
+    await cmd_help(message, bot)
+
+
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message, bot: Bot) -> None:
     """Handle Cancel - clear state and return to home."""

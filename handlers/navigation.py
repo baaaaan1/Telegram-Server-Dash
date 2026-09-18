@@ -50,9 +50,3 @@ async def btn_cancel(message: Message) -> None:
         await message.bot.current_state().clear()
     except Exception:
         pass
-
-
-@router.message(F.text == Messages.MENU_STATUS)
-async def btn_status(message: Message) -> None:
-    """Handle Status menu button."""
-    await message.answer("📊 Mendapatkan status server...", reply_markup=make_home_keyboard())

@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.probe import connectivity_test, latency_test
+from core.probe import collect_server_metrics, connectivity_test, latency_test
 from core.ssh import CommandResult
 
 
@@ -87,3 +87,50 @@ class TestLatencyTest:
 
         latency = await latency_test(MockConn())
         assert latency == -1
+
+
+class TestServerMetrics:
+    """Tests for complete server metric snapshots."""
+
+    @pytest.mark.asyncio
+    async def test_collects_native_metrics(self):
+        """Collect the host fields shown by the status handler."""
+
+        class MockConn:
+            async def run(self, command):
+                outputs = {
+                    "echo ok": "ok\n",
+                    "uptime": "up 2 days\n",
+                    "loadavg": "0.10 0.20 0.30\n",
+                    "hostname": "vps-01\n",
+                    "free -m": "128/1024 MiB (13%)",
+                    "df -hP": "4G/20G (20%)",
+                    "ping -c": "time=0.25 ms\n",
+                }
+                stdout = next(
+                    (output for marker, output in outputs.items() if marker in command), ""
+                )
+                return CommandResult(stdout=stdout, stderr="", exit_code=0, duration=0.01)
+
+        metrics = await collect_server_metrics(MockConn())
+
+        assert metrics.online is True
+        assert metrics.hostname == "vps-01"
+        assert metrics.uptime == "up 2 days"
+        assert metrics.load == "0.10 0.20 0.30"
+        assert metrics.memory == "128/1024 MiB (13%)"
+        assert metrics.disk == "4G/20G (20%)"
+        assert metrics.latency_ms == 0.25
+
+    @pytest.mark.asyncio
+    async def test_offline_server_stops_after_connectivity_check(self):
+        """Offline servers return a safe empty snapshot."""
+
+        class MockConn:
+            async def run(self, command):
+                return CommandResult(stdout="", stderr="failed", exit_code=1, duration=0.01)
+
+        metrics = await collect_server_metrics(MockConn())
+
+        assert metrics.online is False
+        assert metrics.hostname == "unknown"
