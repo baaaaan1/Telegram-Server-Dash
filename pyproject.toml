@@ -1,0 +1,48 @@
+[project]
+name = "telegram-server-dash"
+version = "0.1.0"
+description = "Telegram Server Dash - Bot Telegram sebagai dashboard kontrol & monitoring VPS multi-server"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Telegram Server Dash Team"}]
+dependencies = [
+    "aiogram>=3.20",
+    "asyncssh>=2.20",
+    "pydantic-settings>=2.8",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9",
+    "black>=24.10",
+]
+
+[project.scripts]
+telegram-server-dash = "bot:main"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["bot", "core", "handlers", "config", "db"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "DTZ", "EM", "ISC", "PIE", "PYI", "Q", "SIM", "PL", "TID"]
+ignore = ["E501", "PLR2004", "PLC0415", "EM101", "PLW0603", "PYI034", "SIM105"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bot", "core", "handlers", "config", "db"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+pages = ["bot", "core", "handlers", "config", "db"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

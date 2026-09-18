@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  bot:
+    build:
+      context: .
+      target: runtime
+    container_name: telegram-server-dash
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    environment:
+      - TZ=Asia/Jakarta
+    networks:
+      - tsd-network
+    profiles:
+      - default
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  agent:
+    build:
+      context: .
+      target: runtime
+    container_name: telegram-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ~/.ssh:/app/.ssh:ro
+      - ./config:/app/config:ro
+    networks:
+      - tsd-network
+    profiles:
+      - agent
+    depends_on:
+      - bot
+    command: ["python", "-c", "print('Agent placeholder - not yet implemented')"]
+
+networks:
+  tsd-network:
+    driver: bridge
