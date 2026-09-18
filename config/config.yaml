@@ -1,20 +1,12 @@
 # Telegram Server Dash - Configuration
 # Bot will look for .env for sensitive values
 
-bot:
-  mode: polling
-
 servers:
   - name: localhost-test
     group: test
     description: "Local test server via subprocess (for development)"
     enabled: true
     transport: local
-    host: "127.0.0.1"
-    port: 22
-    user: root
-    auth: key
-    key_path: "~/.ssh/id_ed25519"
     monitor_interval: 30
 
 monitoring:

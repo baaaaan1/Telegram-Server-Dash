@@ -3,7 +3,7 @@
 import pytest
 
 from config.servers import AuthMethod, ServerConfig, ServerRegistry, Transport
-from config.settings import BotSettings, WebhookSettings
+from config.settings import BotSettings
 
 
 class TestBotSettings:
@@ -21,17 +21,6 @@ class TestBotSettings:
         settings = BotSettings()
         assert settings.environment == "dev"
         assert settings.log_chat_id is None
-
-
-class TestWebhookSettings:
-    """Tests for WebhookSettings."""
-
-    def test_defaults(self):
-        """Test default webhook config."""
-        settings = WebhookSettings()
-        assert settings.base_url == ""
-        assert settings.path == "/webhook"
-        assert settings.secret_token is None
 
 
 class TestServerConfig:

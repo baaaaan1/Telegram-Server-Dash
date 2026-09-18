@@ -108,13 +108,3 @@ def load_server_registry(config_path: Path | str) -> ServerRegistry:
             servers_dict[name] = ServerConfig(**raw)
 
     return ServerRegistry(servers=servers_dict)
-
-
-def resolve_config_path(config_path: Path) -> Path:
-    """Resolve the effective config path."""
-    if config_path.exists():
-        return config_path
-    alt = Path("config/config.yaml")
-    if alt.exists():
-        return alt
-    return config_path

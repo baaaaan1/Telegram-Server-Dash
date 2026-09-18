@@ -8,8 +8,6 @@ from typing import Annotated
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
-DEFAULT_CONFIG_PATH = Path("config/config.yaml")
-
 
 class BotSettings(BaseSettings):
     """Telegram bot runtime configuration from environment."""
@@ -48,30 +46,10 @@ class BotSettings(BaseSettings):
         return []
 
 
-class WebhookSettings(BaseSettings):
-    """Webhook configuration for production deployments."""
-
-    base_url: Annotated[str, Field(default="", alias="WEBHOOK_BASE_URL")]
-    path: Annotated[str, Field(default="/webhook", alias="WEBHOOK_PATH")]
-    secret_token: Annotated[str | None, Field(default=None, alias="WEBHOOK_SECRET_TOKEN")]
-
-    model_config = {"extra": "ignore", "case_sensitive": False}
-
-
-class BotRuntimeConfig(BaseSettings):
-    """Telegram bot configuration loaded from Python."""
-
-    mode: str = Field(default="polling")
-    webhook: WebhookSettings = Field(default_factory=WebhookSettings)
-
-    model_config = {"extra": "ignore", "case_sensitive": False}
-
-
 def load_settings() -> tuple[BotSettings, Path]:
     """Load bot settings from environment, return (settings, config_path)."""
     settings = BotSettings()
-    config_path = settings.config_path if settings.config_path.exists() else DEFAULT_CONFIG_PATH
-    return settings, config_path
+    return settings, settings.config_path
 
 
 AppSettings = BotSettings

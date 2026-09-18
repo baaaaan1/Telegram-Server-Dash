@@ -9,16 +9,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.webhook.aiohttp_server import setup_application
-from aiohttp import web
 
-from config import (
-    AppSettings,
-    BotRuntimeConfig,
-    load_server_registry,
-    load_settings,
-    resolve_config_path,
-)
+from config import AppSettings, load_server_registry, load_settings
+from db import init_database
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +24,13 @@ def create_bot(token: str) -> Bot:
     )
 
 
-def build_dispatcher(settings: AppSettings, config: BotRuntimeConfig | None = None) -> Dispatcher:
+def build_dispatcher(settings: AppSettings) -> Dispatcher:
     """Build and configure the dispatchers with all routers."""
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    from handlers import common, echo, navigation, status, webhook
+    from handlers import common, echo, navigation, status
 
-    dp.include_router(webhook.router)
     dp.include_router(common.router)
     dp.include_router(status.router)
     dp.include_router(echo.router)
@@ -50,11 +42,14 @@ def build_dispatcher(settings: AppSettings, config: BotRuntimeConfig | None = No
 def build_app() -> tuple[Bot, Dispatcher, AppSettings]:
     """Build complete app with bot, dispatcher, and settings."""
     settings, config_path = load_settings()
-    resolved_path = resolve_config_path(config_path)
-    load_server_registry(resolved_path)
+    if not config_path.is_file():
+        msg = f"Server configuration file not found: {config_path}"
+        raise FileNotFoundError(msg)
 
-    runtime_config = BotRuntimeConfig()
-    dp = build_dispatcher(settings, runtime_config)
+    load_server_registry(config_path)
+    init_database(settings.database_path)
+
+    dp = build_dispatcher(settings)
     bot = create_bot(settings.bot_token)
 
     return bot, dp, settings
@@ -64,26 +59,6 @@ async def start_polling(bot: Bot, dp: Dispatcher) -> None:
     """Start bot in polling mode."""
     logger.info("Starting bot in polling mode...")
     await dp.start_polling(bot)
-
-
-async def start_webhook(bot: Bot, dp: Dispatcher, settings: AppSettings) -> None:
-    """Start bot in webhook mode with aiohttp server."""
-    config_path = resolve_config_path(settings.config_path)
-    _ = load_server_registry(config_path)
-
-    runtime_cfg = load_settings()[0]
-    webhook_cfg = runtime_cfg.webhook
-
-    app = web.Application()
-    setup_application(app, dp, webhook_path=webhook_cfg.path)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-
-    site = web.TCPSite(runner, webhook_cfg.base_url, 8080)
-    await site.start()
-
-    logger.info(f"Webhook listener started on {webhook_cfg.base_url}")
 
 
 class BotApp:
@@ -104,13 +79,6 @@ class BotApp:
             self.initialize()
         assert self.bot and self.dp
         await start_polling(self.bot, self.dp)
-
-    async def run_webhook(self) -> None:
-        """Run bot in webhook mode."""
-        if not self.bot or not self.dp or not self.settings:
-            self.initialize()
-        assert self.bot and self.dp and self.settings
-        await start_webhook(self.bot, self.dp, self.settings)
 
 
 def main() -> None:

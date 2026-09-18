@@ -1,40 +1,14 @@
 # Telegram Server Dash - Configuration
-# Copy this to config/config.yaml and adjust values
-# SECRET TOKENS should be in .env file, not here
-
-bot:
-  mode: polling  # polling | webhook
-  webhook:
-    base_url: ""
-    path: "/webhook"
-    secret_token: ""
+# Installed as /etc/telegram-server-dash/config.yaml by setup.sh.
+# Secrets belong in /etc/telegram-server-dash/telegram-server-dash.env.
 
 servers:
-  - name: localhost-test
-    group: test
-    description: "Local test server via subprocess (for development)"
+  - name: local-vps
+    group: production
+    description: "VPS host running Telegram Server Dash"
     enabled: true
     transport: local
-    host: "127.0.0.1"
-    port: 22
-    user: root
-    auth: key
-    key_path: "~/.ssh/id_ed25519"
     monitor_interval: 30
-
-  # Example SSH server (uncomment and configure)
-  # - name: production-server-1
-  #   group: production
-  #   description: "Production VPS 1"
-  #   enabled: true
-  #   transport: ssh
-  #   host: "192.168.1.100"
-  #   port: 22
-  #   user: ubuntu
-  #   auth: key
-  #   key_path: "~/.ssh/id_ed25519"
-  #   password_env: ""  # if using password auth
-  #   monitor_interval: 30
 
 monitoring:
   sample_interval: 30

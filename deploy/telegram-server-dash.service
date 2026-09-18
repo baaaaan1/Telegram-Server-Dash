@@ -1,0 +1,37 @@
+[Unit]
+Description=Telegram Server Dash bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=tsd
+Group=tsd
+WorkingDirectory=/opt/telegram-server-dash/current
+EnvironmentFile=/etc/telegram-server-dash/telegram-server-dash.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/telegram-server-dash/current/.venv/bin/python -m bot
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+KillSignal=SIGINT
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/etc/telegram-server-dash
+ReadWritePaths=/var/lib/telegram-server-dash
+
+[Install]
+WantedBy=multi-user.target

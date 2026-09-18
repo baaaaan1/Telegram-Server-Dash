@@ -47,12 +47,20 @@ jobs:
         with:
           fail_ci_if_error: false
 
-  build:
+  deployment:
     needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker image
+      - name: Validate setup script
         run: |
-          echo "Docker build would run here"
-          docker build --target runtime .
+          bash -n setup.sh
+          shellcheck setup.sh
+      - name: Verify systemd unit
+        run: |
+          sudo useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin --user-group tsd
+          sudo install -d /opt/telegram-server-dash/current/.venv/bin
+          sudo install -d /etc/telegram-server-dash /var/lib/telegram-server-dash
+          sudo install -m 0755 /bin/true /opt/telegram-server-dash/current/.venv/bin/python
+          sudo install -m 0600 /dev/null /etc/telegram-server-dash/telegram-server-dash.env
+          sudo systemd-analyze verify deploy/telegram-server-dash.service
