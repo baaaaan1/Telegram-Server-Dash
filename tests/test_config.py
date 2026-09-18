@@ -22,6 +22,13 @@ class TestBotSettings:
         assert settings.environment == "dev"
         assert settings.log_chat_id is None
 
+    def test_empty_optional_log_chat_id_is_ignored(self, monkeypatch):
+        """An empty systemd environment value uses the optional default."""
+        monkeypatch.setenv("BOT_TOKEN", "test:token")
+        monkeypatch.setenv("LOG_CHAT_ID", "")
+        settings = BotSettings(_env_file=None)
+        assert settings.log_chat_id is None
+
 
 class TestServerConfig:
     """Tests for ServerConfig model."""
