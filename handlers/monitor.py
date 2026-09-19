@@ -97,7 +97,7 @@ async def cmd_cpu(message: Message) -> None:
     lines = [Messages.CPU_HEADER]
 
     try:
-        for name, server in enabled.items():
+        for name, _server in enabled.items():
             connection = pool[name]
             try:
                 cpu = await collect_cpu_details(connection)
@@ -113,7 +113,7 @@ async def cmd_cpu(message: Message) -> None:
             lines.append(f"   Suhu: {cpu.temperature}")
 
             if cpu.usage_per_core:
-                lines.append(f"\n   <b>CPU Usage per Core:</b>")
+                lines.append("\n   <b>CPU Usage per Core:</b>")
                 for i, usage in enumerate(cpu.usage_per_core):
                     bar = _make_bar(usage)
                     lines.append(f"   Core {i}: {bar} {usage}%")
@@ -121,7 +121,7 @@ async def cmd_cpu(message: Message) -> None:
                 lines.append(f"\n   <b>Overall: {cpu.overall_usage}%</b>")
 
             if cpu.top_processes:
-                lines.append(f"\n   <b>Top Processes (CPU):</b>")
+                lines.append("\n   <b>Top Processes (CPU):</b>")
                 for i, proc in enumerate(cpu.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:40])
                     lines.append(
@@ -147,7 +147,7 @@ async def cmd_memory(message: Message) -> None:
     lines = [Messages.MEMORY_HEADER]
 
     try:
-        for name, server in enabled.items():
+        for name, _server in enabled.items():
             connection = pool[name]
             try:
                 mem = await collect_memory_details(connection)
@@ -183,7 +183,7 @@ async def cmd_memory(message: Message) -> None:
                 lines.append("\n   <b>Swap:</b> Tidak aktif")
 
             if mem.top_processes:
-                lines.append(f"\n   <b>Top Processes (Memory):</b>")
+                lines.append("\n   <b>Top Processes (Memory):</b>")
                 for i, proc in enumerate(mem.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:40])
                     lines.append(
@@ -209,7 +209,7 @@ async def cmd_network(message: Message) -> None:
     lines = [Messages.NETWORK_HEADER]
 
     try:
-        for name, server in enabled.items():
+        for name, _server in enabled.items():
             connection = pool[name]
             try:
                 net = await collect_network_details(connection)
@@ -222,17 +222,17 @@ async def cmd_network(message: Message) -> None:
             lines.append(f"\n🟢 <b>{safe_name}</b>")
 
             lines.append(
-                f"\n   <b>Total Traffic:</b>"
+                "\n   <b>Total Traffic:</b>"
             )
             lines.append(f"   ↓ RX: {_format_bytes(net.total_rx_bytes)}")
             lines.append(f"   ↑ TX: {_format_bytes(net.total_tx_bytes)}")
 
-            lines.append(f"\n   <b>Connections:</b>")
+            lines.append("\n   <b>Connections:</b>")
             lines.append(f"   Active: {net.active_connections}")
             lines.append(f"   Established: {net.established_connections}")
 
             if net.interfaces:
-                lines.append(f"\n   <b>Interfaces:</b>")
+                lines.append("\n   <b>Interfaces:</b>")
                 for iface in net.interfaces:
                     if iface["name"] == "lo":
                         continue
@@ -243,7 +243,7 @@ async def cmd_network(message: Message) -> None:
                     )
 
             if net.listening_ports:
-                lines.append(f"\n   <b>Listening Ports:</b>")
+                lines.append("\n   <b>Listening Ports:</b>")
                 for port_info in net.listening_ports[:10]:
                     process = port_info["process"] or "unknown"
                     lines.append(
@@ -269,7 +269,7 @@ async def cmd_disk(message: Message) -> None:
     lines = [Messages.DISK_HEADER]
 
     try:
-        for name, server in enabled.items():
+        for name, _server in enabled.items():
             connection = pool[name]
             try:
                 disk = await collect_disk_details(connection)
@@ -282,7 +282,7 @@ async def cmd_disk(message: Message) -> None:
             lines.append(f"\n🟢 <b>{safe_name}</b>")
 
             if disk.partitions:
-                lines.append(f"\n   <b>Partitions:</b>")
+                lines.append("\n   <b>Partitions:</b>")
                 for part in disk.partitions:
                     usage_str = part["use_percent"].replace("%", "")
                     try:
@@ -309,7 +309,7 @@ async def cmd_disk(message: Message) -> None:
                 )
 
             if disk.io_stats:
-                lines.append(f"\n   <b>I/O Stats:</b>")
+                lines.append("\n   <b>I/O Stats:</b>")
                 for stat in disk.io_stats:
                     lines.append(
                         f"   <code>{html.escape(stat['device'])}</code>: "
@@ -335,7 +335,7 @@ async def cmd_processes(message: Message) -> None:
     lines = [Messages.PROCESSES_HEADER]
 
     try:
-        for name, server in enabled.items():
+        for name, _server in enabled.items():
             connection = pool[name]
             try:
                 cpu_details = await collect_cpu_details(connection)
@@ -349,7 +349,7 @@ async def cmd_processes(message: Message) -> None:
             lines.append(f"\n🟢 <b>{safe_name}</b>")
 
             if cpu_details.top_processes:
-                lines.append(f"\n   <b>Top by CPU:</b>")
+                lines.append("\n   <b>Top by CPU:</b>")
                 for i, proc in enumerate(cpu_details.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:45])
                     lines.append(
@@ -357,7 +357,7 @@ async def cmd_processes(message: Message) -> None:
                     )
 
             if mem_details.top_processes:
-                lines.append(f"\n   <b>Top by Memory:</b>")
+                lines.append("\n   <b>Top by Memory:</b>")
                 for i, proc in enumerate(mem_details.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:45])
                     lines.append(

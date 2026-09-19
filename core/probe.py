@@ -217,7 +217,7 @@ done
             cores_data2.append((int(parts[0]), int(parts[1])))
 
     usages = []
-    for (idle1, total1), (idle2, total2) in zip(cores_data, cores_data2):
+    for (idle1, total1), (idle2, total2) in zip(cores_data, cores_data2, strict=False):
         total_diff = total2 - total1
         idle_diff = idle2 - idle1
         if total_diff > 0:
@@ -414,7 +414,7 @@ async def check_listening_ports(connection) -> list[dict]:
             port = local.rsplit(":", 1)[-1] if ":" in local else local
             process = ""
             if "users:" in line:
-                process = line.split("users:(\"")[1].split("\"")[0] if "\"(" in line else ""
+                process = line.split('users:("')[1].split('"')[0] if '"(' in line else ""
             ports.append({"port": port, "process": process})
     return ports
 
