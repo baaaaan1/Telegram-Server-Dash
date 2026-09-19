@@ -29,10 +29,11 @@ def build_dispatcher(settings: AppSettings) -> Dispatcher:
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    from handlers import common, echo, navigation, status
+    from handlers import common, echo, monitor, navigation, status
 
     dp.include_router(common.router)
     dp.include_router(status.router)
+    dp.include_router(monitor.router)
     dp.include_router(echo.router)
     dp.include_router(navigation.router)
 

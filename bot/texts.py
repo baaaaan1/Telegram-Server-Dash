@@ -18,6 +18,12 @@ class Messages:
     MENU_STATUS = "📊 Status Server"
     MENU_PING = "🟢 Ping Server"
     MENU_HELP = "❓ Bantuan"
+    MENU_CPU = "🖥️ CPU"
+    MENU_MEMORY = "💾 Memory"
+    MENU_NETWORK = "🌐 Network"
+    MENU_PROCESSES = "⚙️ Processes"
+    MENU_DISK = "💿 Disk"
+    MENU_MONITOR = "📈 Monitor"
 
     # Status output
     STATUS_HEADER = "📊 <b>Server Status</b>\n"
@@ -38,6 +44,12 @@ class Messages:
 /start - Mulai bot
 /status - Cek status server
 /ping - Uji konektivitas
+/monitor - Menu monitoring
+/cpu - Detail CPU
+/mem - Detail memory
+/net - Detail network
+/disk - Detail disk
+/proc - Top processes
 /echo - Balas teks Anda
 
 Menu navigasi:
@@ -52,6 +64,12 @@ Untuk bantuan lebih lanjut, ketuk ❓"""
 /start - Start bot
 /status - Check server status
 /ping - Test connectivity
+/monitor - Monitoring menu
+/cpu - CPU details
+/mem - Memory details
+/net - Network details
+/disk - Disk details
+/proc - Top processes
 /echo - Echo your text
 
 Navigation:
@@ -66,6 +84,14 @@ For more help, tap ❓"""
 
     # Error
     ERROR_UNKNOWN = "❌ Terjadi kesalahan. Silakan coba lagi."
+
+    # Monitoring headers
+    CPU_HEADER = "🖥️ <b>CPU Details</b>\n"
+    MEMORY_HEADER = "💾 <b>Memory Details</b>\n"
+    NETWORK_HEADER = "🌐 <b>Network Details</b>\n"
+    PROCESSES_HEADER = "⚙️ <b>Top Processes</b>\n"
+    DISK_HEADER = "💿 <b>Disk Details</b>\n"
+    MONITOR_HEADER = "📈 <b>System Monitor</b>\n"
 
     # Echo
     ECHO_PREFIX = "<i>Echo:</i>"

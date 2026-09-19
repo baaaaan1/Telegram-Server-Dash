@@ -16,6 +16,12 @@ class NavState(StatesGroup):
     ping = State()
     echo = State()
     help_screen = State()
+    monitor = State()
+    cpu = State()
+    memory = State()
+    network = State()
+    disk = State()
+    processes = State()
 
 
 class NavStack:

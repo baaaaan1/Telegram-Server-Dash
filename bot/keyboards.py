@@ -72,8 +72,20 @@ def make_home_keyboard() -> ReplyKeyboardMarkup:
     return make_reply_keyboard(
         rows=[
             [KeyboardButton(text=Messages.MENU_STATUS)],
+            [KeyboardButton(text=Messages.MENU_MONITOR)],
             [KeyboardButton(text=Messages.MENU_PING)],
             [KeyboardButton(text=Messages.MENU_HELP)],
+        ]
+    )
+
+
+def make_monitor_keyboard() -> ReplyKeyboardMarkup:
+    """Create monitor submenu keyboard."""
+    return make_reply_keyboard(
+        rows=[
+            [KeyboardButton(text=Messages.MENU_CPU), KeyboardButton(text=Messages.MENU_MEMORY)],
+            [KeyboardButton(text=Messages.MENU_NETWORK), KeyboardButton(text=Messages.MENU_DISK)],
+            [KeyboardButton(text=Messages.MENU_PROCESSES)],
         ]
     )
 

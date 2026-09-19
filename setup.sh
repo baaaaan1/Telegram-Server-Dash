@@ -279,8 +279,9 @@ create_release() {
         --exclude='./.git' \
         --exclude='./.venv' \
         --exclude='./venv' \
-        --exclude='./ENV' \
         --exclude='./.env*' \
+        --exclude='./.commandcode' \
+        --exclude='./.github' \
         --exclude='./.kilo' \
         --exclude='./data' \
         --exclude='./deploy.logs' \
@@ -295,7 +296,8 @@ create_release() {
     python3 -m venv "${CANDIDATE_RELEASE}/.venv"
     "${CANDIDATE_RELEASE}/.venv/bin/python" -m pip install \
         --disable-pip-version-check -r "${CANDIDATE_RELEASE}/requirements.txt"
-    "${CANDIDATE_RELEASE}/.venv/bin/python" -m compileall -q "${CANDIDATE_RELEASE}"
+    "${CANDIDATE_RELEASE}/.venv/bin/python" -m compileall -q "${CANDIDATE_RELEASE}" || \
+        die "Python bytecode compilation failed. Check for syntax errors."
     chown -R root:root "${CANDIDATE_RELEASE}"
 }
 
