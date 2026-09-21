@@ -231,9 +231,7 @@ done
 
 async def check_cpu_temperature(connection) -> str:
     """Get CPU temperature if available."""
-    result = await connection.run(
-        "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0"
-    )
+    result = await connection.run("cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0")
     if result.exit_code == 0:
         try:
             temp = int(result.stdout.strip())
@@ -257,13 +255,15 @@ async def check_top_processes_cpu(connection, limit: int = 5) -> list[dict]:
             continue
         parts = line.split(None, 10)
         if len(parts) >= 11:
-            processes.append({
-                "user": parts[0],
-                "pid": parts[1],
-                "cpu": parts[2],
-                "mem": parts[3],
-                "command": parts[10][:50],
-            })
+            processes.append(
+                {
+                    "user": parts[0],
+                    "pid": parts[1],
+                    "cpu": parts[2],
+                    "mem": parts[3],
+                    "command": parts[10][:50],
+                }
+            )
     return processes
 
 
@@ -280,13 +280,15 @@ async def check_top_processes_mem(connection, limit: int = 5) -> list[dict]:
             continue
         parts = line.split(None, 10)
         if len(parts) >= 11:
-            processes.append({
-                "user": parts[0],
-                "pid": parts[1],
-                "cpu": parts[2],
-                "mem": parts[3],
-                "command": parts[10][:50],
-            })
+            processes.append(
+                {
+                    "user": parts[0],
+                    "pid": parts[1],
+                    "cpu": parts[2],
+                    "mem": parts[3],
+                    "command": parts[10][:50],
+                }
+            )
     return processes
 
 
@@ -378,11 +380,13 @@ done
             continue
         parts = line.split()
         if len(parts) >= 3:
-            interfaces.append({
-                "name": parts[0],
-                "rx_bytes": int(parts[1]),
-                "tx_bytes": int(parts[2]),
-            })
+            interfaces.append(
+                {
+                    "name": parts[0],
+                    "rx_bytes": int(parts[1]),
+                    "tx_bytes": int(parts[2]),
+                }
+            )
     return interfaces
 
 
@@ -453,14 +457,16 @@ async def check_disk_partitions(connection) -> list[dict]:
             continue
         parts = line.split()
         if len(parts) >= 6:
-            partitions.append({
-                "device": parts[0],
-                "size": parts[1],
-                "used": parts[2],
-                "avail": parts[3],
-                "use_percent": parts[4],
-                "mount": parts[5],
-            })
+            partitions.append(
+                {
+                    "device": parts[0],
+                    "size": parts[1],
+                    "used": parts[2],
+                    "avail": parts[3],
+                    "use_percent": parts[4],
+                    "mount": parts[5],
+                }
+            )
     return partitions
 
 
@@ -499,13 +505,15 @@ cat /proc/diskstats | awk '{
             continue
         parts = line.split()
         if len(parts) >= 5:
-            stats.append({
-                "device": parts[0],
-                "reads": int(parts[1]),
-                "writes": int(parts[2]),
-                "read_ms": int(parts[3]),
-                "write_ms": int(parts[4]),
-            })
+            stats.append(
+                {
+                    "device": parts[0],
+                    "reads": int(parts[1]),
+                    "writes": int(parts[2]),
+                    "read_ms": int(parts[3]),
+                    "write_ms": int(parts[4]),
+                }
+            )
     return stats
 
 

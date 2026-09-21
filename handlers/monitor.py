@@ -124,13 +124,9 @@ async def cmd_cpu(message: Message) -> None:
                 lines.append("\n   <b>Top Processes (CPU):</b>")
                 for i, proc in enumerate(cpu.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:40])
-                    lines.append(
-                        f"   {i}. <code>{proc['cpu']}%</code> - PID {proc['pid']} - {cmd}"
-                    )
+                    lines.append(f"   {i}. <code>{proc['cpu']}%</code> - PID {proc['pid']} - {cmd}")
     finally:
-        await asyncio.gather(
-            *(c.close() for c in pool.values()), return_exceptions=True
-        )
+        await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
 
@@ -163,9 +159,7 @@ async def cmd_memory(message: Message) -> None:
                 usage_pct = round(mem.used_mb / mem.total_mb * 100, 1)
                 bar = _make_bar(usage_pct)
                 lines.append(f"\n   <b>RAM:</b> {bar} {usage_pct}%")
-                lines.append(
-                    f"   Used: {mem.used_mb} MB / {mem.total_mb} MB"
-                )
+                lines.append(f"   Used: {mem.used_mb} MB / {mem.total_mb} MB")
                 lines.append(f"   Free: {mem.free_mb} MB")
                 lines.append(f"   Available: {mem.available_mb} MB")
                 lines.append(f"   Cached: {mem.cached_mb} MB")
@@ -175,9 +169,7 @@ async def cmd_memory(message: Message) -> None:
                 swap_pct = round(mem.swap_used_mb / mem.swap_total_mb * 100, 1)
                 bar = _make_bar(swap_pct)
                 lines.append(f"\n   <b>Swap:</b> {bar} {swap_pct}%")
-                lines.append(
-                    f"   Used: {mem.swap_used_mb} MB / {mem.swap_total_mb} MB"
-                )
+                lines.append(f"   Used: {mem.swap_used_mb} MB / {mem.swap_total_mb} MB")
                 lines.append(f"   Free: {mem.swap_free_mb} MB")
             else:
                 lines.append("\n   <b>Swap:</b> Tidak aktif")
@@ -186,13 +178,9 @@ async def cmd_memory(message: Message) -> None:
                 lines.append("\n   <b>Top Processes (Memory):</b>")
                 for i, proc in enumerate(mem.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:40])
-                    lines.append(
-                        f"   {i}. <code>{proc['mem']}%</code> - PID {proc['pid']} - {cmd}"
-                    )
+                    lines.append(f"   {i}. <code>{proc['mem']}%</code> - PID {proc['pid']} - {cmd}")
     finally:
-        await asyncio.gather(
-            *(c.close() for c in pool.values()), return_exceptions=True
-        )
+        await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
 
@@ -221,9 +209,7 @@ async def cmd_network(message: Message) -> None:
             safe_name = html.escape(name)
             lines.append(f"\n🟢 <b>{safe_name}</b>")
 
-            lines.append(
-                "\n   <b>Total Traffic:</b>"
-            )
+            lines.append("\n   <b>Total Traffic:</b>")
             lines.append(f"   ↓ RX: {_format_bytes(net.total_rx_bytes)}")
             lines.append(f"   ↑ TX: {_format_bytes(net.total_tx_bytes)}")
 
@@ -238,21 +224,15 @@ async def cmd_network(message: Message) -> None:
                         continue
                     rx = _format_bytes(iface["rx_bytes"])
                     tx = _format_bytes(iface["tx_bytes"])
-                    lines.append(
-                        f"   • <code>{html.escape(iface['name'])}</code>: ↓{rx} ↑{tx}"
-                    )
+                    lines.append(f"   • <code>{html.escape(iface['name'])}</code>: ↓{rx} ↑{tx}")
 
             if net.listening_ports:
                 lines.append("\n   <b>Listening Ports:</b>")
                 for port_info in net.listening_ports[:10]:
                     process = port_info["process"] or "unknown"
-                    lines.append(
-                        f"   • :{port_info['port']} - {html.escape(process)}"
-                    )
+                    lines.append(f"   • :{port_info['port']} - {html.escape(process)}")
     finally:
-        await asyncio.gather(
-            *(c.close() for c in pool.values()), return_exceptions=True
-        )
+        await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
 
@@ -290,12 +270,8 @@ async def cmd_disk(message: Message) -> None:
                     except ValueError:
                         usage_pct = 0
                     bar = _make_bar(usage_pct, 6)
-                    lines.append(
-                        f"   <code>{html.escape(part['mount'])}</code>"
-                    )
-                    lines.append(
-                        f"   {bar} {part['use_percent']} - {part['used']}/{part['size']}"
-                    )
+                    lines.append(f"   <code>{html.escape(part['mount'])}</code>")
+                    lines.append(f"   {bar} {part['use_percent']} - {part['used']}/{part['size']}")
                     lines.append(
                         f"   Device: {html.escape(part['device'])} | Free: {part['avail']}"
                     )
@@ -304,9 +280,7 @@ async def cmd_disk(message: Message) -> None:
                 inode_pct = round(disk.used_inodes / disk.total_inodes * 100, 1)
                 bar = _make_bar(inode_pct, 6)
                 lines.append(f"\n   <b>Inodes:</b> {bar} {inode_pct}%")
-                lines.append(
-                    f"   Used: {disk.used_inodes:,} / {disk.total_inodes:,}"
-                )
+                lines.append(f"   Used: {disk.used_inodes:,} / {disk.total_inodes:,}")
 
             if disk.io_stats:
                 lines.append("\n   <b>I/O Stats:</b>")
@@ -316,9 +290,7 @@ async def cmd_disk(message: Message) -> None:
                         f"R={stat['reads']:,} W={stat['writes']:,}"
                     )
     finally:
-        await asyncio.gather(
-            *(c.close() for c in pool.values()), return_exceptions=True
-        )
+        await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
 
@@ -352,17 +324,13 @@ async def cmd_processes(message: Message) -> None:
                 lines.append("\n   <b>Top by CPU:</b>")
                 for i, proc in enumerate(cpu_details.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:45])
-                    lines.append(
-                        f"   {i}. <code>{proc['cpu']}%</code> | PID {proc['pid']} | {cmd}"
-                    )
+                    lines.append(f"   {i}. <code>{proc['cpu']}%</code> | PID {proc['pid']} | {cmd}")
 
             if mem_details.top_processes:
                 lines.append("\n   <b>Top by Memory:</b>")
                 for i, proc in enumerate(mem_details.top_processes[:5], 1):
                     cmd = html.escape(proc["command"][:45])
-                    lines.append(
-                        f"   {i}. <code>{proc['mem']}%</code> | PID {proc['pid']} | {cmd}"
-                    )
+                    lines.append(f"   {i}. <code>{proc['mem']}%</code> | PID {proc['pid']} | {cmd}")
 
             # Get process count
             result = await connection.run("ps aux | wc -l")
@@ -371,16 +339,12 @@ async def cmd_processes(message: Message) -> None:
                 lines.append(f"\n   <b>Total Processes:</b> {count}")
 
             # Get zombie count
-            result = await connection.run(
-                "ps aux | awk '$8 ~ /Z/ {count++} END {print count+0}'"
-            )
+            result = await connection.run("ps aux | awk '$8 ~ /Z/ {count++} END {print count+0}'")
             if result.exit_code == 0:
                 zombies = int(result.stdout.strip())
                 if zombies > 0:
                     lines.append(f"   ⚠️ <b>Zombies:</b> {zombies}")
     finally:
-        await asyncio.gather(
-            *(c.close() for c in pool.values()), return_exceptions=True
-        )
+        await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
