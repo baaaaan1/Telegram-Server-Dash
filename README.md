@@ -7,7 +7,7 @@ Telegram Server Dash (TSD) adalah bot Telegram berbasis aiogram untuk monitoring
 
 ## Status Proyek
 
-Fondasi bot, navigasi, registry server, probe, SQLite, dan deployment native telah tersedia. Monitoring lengkap, RBAC, alerting, dan operasi manajemen privileged masih berada dalam roadmap. Lihat [`TASKS.md`](TASKS.md) untuk status yang lebih rinci.
+Fondasi bot, navigasi, registry server, probe, SQLite, dan deployment native telah tersedia. Autentikasi whitelist, RBAC, PIN aksi kritikal, rate limiting, dan audit trail sudah aktif (lihat §1 [`TASKS.md`](TASKS.md)). Alerting dan operasi manajemen privileged masih berada dalam roadmap.
 
 ## Deployment Produksi
 
@@ -101,6 +101,53 @@ Cadangkan dua target berikut sebelum update besar atau migrasi:
 
 Hentikan service atau gunakan mekanisme backup SQLite yang konsisten sebelum menyalin database aktif.
 
+## Autentikasi, RBAC & PIN
+
+Setiap pesan private melewati `AccessMiddleware` sebelum mencapai handler: user harus terdaftar di whitelist, aktif, dan tidak sedang terkunci. Tanpa user terdaftar semua akses ditolak.
+
+| Role | Kemampuan |
+|---|---|
+| `viewer` | Monitoring read-only (`/status`, `/ping`, `/monitor`, dll.). |
+| `operator` | Semua viewer + manajemen service dan exec command (dipakai fitur §3). |
+| `admin` | Semua permission, termasuk `/unlock`, `/users`, `/audit`, dan aksi kritikal. |
+
+Whitelist diisi dari `ADMIN_USER_IDS`, `OPERATOR_USER_IDS`, dan `VIEWER_USER_IDS` saat service start, lalu disimpan di tabel `users` (PIN dan status lockout tidak tertimpa). Daftar env bersifat otoritatif: ID yang dihapus dari env akan dinonaktifkan otomatis pada restart berikutnya, dan ID yang ditambahkan kembali langsung aktif. `setup.sh install`/`configure` mempertahankan variabel opsional (`OPERATOR_USER_IDS`, `VIEWER_USER_IDS`, `STRICT_USERNAME_MATCH`, `TSD_PIN`, dan batas auth/rate limit) yang sudah ada di env file. User baru yang mencoba mengakses bot akan ditolak, dicatat di audit trail, dan admin menerima notifikasi (maksimal sekali per 10 menit per user).
+
+### Verifikasi ID + Username
+
+Setiap entri whitelist boleh mengikat akun ke username Telegram-nya dengan format `ID:username`. Jika binding ada, pesan hanya diterima ketika ID **dan** username cocok (perbandingan tanpa `@` dan tidak case-sensitive); username yang berubah atau tidak ada akan ditolak dan dicatat sebagai `auth.denied.username_mismatch`.
+
+```env
+ADMIN_USER_IDS=123456789:namauser,987654321
+```
+
+- `123456789:namauser` → hanya akun dengan ID tersebut dan username `@namauser`.
+- `987654321` → hanya dicek ID-nya (kompatibel dengan konfigurasi lama).
+- `STRICT_USERNAME_MATCH=1` mewajibkan **semua** entri whitelist punya binding username; service menolak start dengan pesan jelas jika ada yang belum diikat. Ini memberi jaminan bahwa akses hanya bisa oleh admin/master dengan ID + username yang cocok.
+- Saat strict mode nonaktif, admin tanpa binding tetap bisa masuk tetapi dicatat sebagai peringatan di journal agar bisa diikat.
+- Binding juga ditampilkan di `/whoami` (`Binding: terikat @namauser`) dan `/users` (`terikat: @namauser`).
+
+Perintah terkait:
+
+```text
+/pin                 atur atau ganti PIN aksi kritikal (4-8 digit angka)
+/whoami              tampilkan ID, role, permission, status PIN & lockout
+/unlock <user_id>    admin: bersihkan lockout user
+/users               admin: daftar user terdaftar
+/audit [n]           admin: n (maks 25) entri audit terakhir
+```
+
+Aksi kritikal (reboot, kill proses, hapus file, ubah firewall) nanti dijalankan lewat `handlers/critical.py`: konfirmasi `✅ Ya` / `❌ Batal`, lalu PIN bila `PIN_TTL_SECONDS` sudah lewat. PIN disimpan sebagai hash PBKDF2-SHA256 di SQLite; `TSD_PIN` hanya fallback awal sebelum PIN diatur lewat `/pin`.
+
+Rate limiting membatasi `RATE_LIMIT_PER_MINUTE` pesan per user per menit (tombol navigasi dikecualikan). Setelah `AUTH_MAX_ATTEMPTS` kegagalan PIN beruntun, akun terkunci `AUTH_LOCKOUT_SECONDS`. Jika admin utama ikut terkunci, pulihkan lewat `/unlock` dari admin lain atau buka database:
+
+```bash
+sudo -u tsd sqlite3 /var/lib/telegram-server-dash/bot.db \
+  "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE user_id = <ID>;"
+```
+
+Semua aksi tercatat di tabel `audit_log` (user, command, server, waktu, hasil). Bila `LOG_CHAT_ID` diisi, salinan dikirim ke chat tersebut.
+
 ## Permission Model
 
 Service berjalan sebagai user `tsd`, bukan root. Akses tulis service dibatasi ke `/var/lib/telegram-server-dash`; aplikasi dan konfigurasi bersifat read-only bagi service. Monitoring host yang tidak memerlukan privilege dapat berjalan langsung, tetapi beberapa detail sistem mungkin tidak tersedia bagi user biasa.
@@ -142,10 +189,18 @@ ruff format --check .
 Variabel runtime yang didukung:
 
 | Variable | Required | Default | Description |
-|---|---:|---|---|
+|---|---|---:|---|---|
 | `BOT_TOKEN` | Ya | - | Token dari BotFather |
-| `ADMIN_USER_IDS` | Produksi | kosong | ID admin dipisahkan koma |
-| `LOG_CHAT_ID` | Tidak | kosong | Chat tujuan log opsional |
+| `ADMIN_USER_IDS` | Produksi | kosong | ID admin dipisahkan koma, opsional `ID:username` |
+| `OPERATOR_USER_IDS` | Tidak | kosong | ID operator (monitoring + service), format sama |
+| `VIEWER_USER_IDS` | Tidak | kosong | ID viewer (read-only), format sama |
+| `STRICT_USERNAME_MATCH` | Tidak | `0` | `1` = wajibkan binding username untuk semua entri whitelist |
+| `LOG_CHAT_ID` | Tidak | kosong | Chat tujuan salinan audit opsional |
+| `TSD_PIN` | Tidak | kosong | PIN awal aksi kritikal (4-8 digit) sebelum diatur via `/pin` |
+| `PIN_TTL_SECONDS` | Tidak | `300` | Lama PIN dianggap valid; `0` = selalu minta PIN |
+| `AUTH_MAX_ATTEMPTS` | Tidak | `5` | Kegagalan PIN sebelum akun terkunci |
+| `AUTH_LOCKOUT_SECONDS` | Tidak | `900` | Durasi lockout |
+| `RATE_LIMIT_PER_MINUTE` | Tidak | `30` | Batas pesan per user per menit |
 | `ENV` | Tidak | `dev` | Nama environment |
 | `DATABASE_PATH` | Tidak | `data/bot.db` | Path SQLite |
 | `TSD_CONFIG` | Tidak | `config/config.yaml` | Path registry YAML |

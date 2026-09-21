@@ -20,6 +20,17 @@ CANDIDATE_RELEASE=""
 ENV_BACKUP=""
 ENV_CHANGE_PENDING=0
 ENV_PREVIOUSLY_EXISTS=0
+# Optional runtime settings that are not prompted for but must survive a rewrite.
+OPTIONAL_ENV_KEYS=(
+    OPERATOR_USER_IDS
+    VIEWER_USER_IDS
+    STRICT_USERNAME_MATCH
+    TSD_PIN
+    PIN_TTL_SECONDS
+    AUTH_MAX_ATTEMPTS
+    AUTH_LOCKOUT_SECONDS
+    RATE_LIMIT_PER_MINUTE
+)
 
 usage() {
     cat <<'EOF'
@@ -146,14 +157,23 @@ read_env_value() {
     awk -v key="${key}" 'index($0, key "=") == 1 {sub("^[^=]*=", ""); print; exit}' "${ENV_FILE}"
 }
 
+preserve_optional_env_values() {
+    local key value
+    for key in "${OPTIONAL_ENV_KEYS[@]}"; do
+        value="$(read_env_value "${key}")"
+        [[ -n "${value}" ]] || continue
+        printf '%s=%s\n' "${key}" "${value}"
+    done
+}
+
 validate_token() {
     [[ "$1" =~ ^[0-9]+:[A-Za-z0-9_-]{20,}$ ]] || \
         die "BOT_TOKEN has an invalid format. Obtain the token from BotFather."
 }
 
 validate_admin_ids() {
-    [[ "$1" =~ ^[0-9]+(,[0-9]+)*$ ]] || \
-        die "ADMIN_USER_IDS must contain one or more numeric IDs separated by commas."
+    [[ "$1" =~ ^[0-9]+(:[A-Za-z0-9_]{5,32})?(,[0-9]+(:[A-Za-z0-9_]{5,32})?)*$ ]] || \
+        die "ADMIN_USER_IDS must be comma-separated user IDs, optionally bound to a username (ID:username)."
 }
 
 prompt_runtime_values() {
@@ -176,7 +196,7 @@ prompt_runtime_values() {
     if [[ -n "${existing_admin}" ]]; then
         printf 'ADMIN_USER_IDS [%s]: ' "${existing_admin}" >/dev/tty
     else
-        printf 'ADMIN_USER_IDS (comma-separated, at least one): ' >/dev/tty
+        printf 'ADMIN_USER_IDS (comma-separated, optional ID:username, at least one): ' >/dev/tty
     fi
     IFS= read -r entered_admin </dev/tty || die "Unable to read ADMIN_USER_IDS."
     entered_admin="${entered_admin//[[:space:]]/}"
@@ -227,6 +247,7 @@ write_environment_file() {
         printf 'ENV=production\n'
         printf 'DATABASE_PATH=%s\n' "${DATABASE_FILE}"
         printf 'TSD_CONFIG=%s\n' "${CONFIG_FILE}"
+        preserve_optional_env_values
     } >"${temp_file}"
     chown root:root "${temp_file}"
     chmod 0600 "${temp_file}"

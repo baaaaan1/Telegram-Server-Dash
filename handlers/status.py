@@ -8,11 +8,15 @@ import logging
 
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from bot.keyboards import make_home_keyboard
+from bot.nav import push_screen
+from bot.services import Services, log_user_action
 from bot.texts import Messages
-from config import AppSettings, load_server_registry, load_settings
+from config import load_server_registry, load_settings
+from config.servers import ServerConfig
 from core.probe import collect_server_metrics, connectivity_test, latency_test
 from core.ssh import create_ssh_pool
 
@@ -20,21 +24,9 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
-def _is_allowed(user_id: int, settings: AppSettings) -> bool:
-    """Check if user ID is in allowed admin list."""
-    return bool(settings.admin_user_ids) and user_id in settings.admin_user_ids
-
-
-async def _load_enabled_servers(message: Message):
-    """Load authorized settings and enabled servers for a message."""
-    settings, config_path = load_settings()
-
-    if not message.from_user or (
-        settings.admin_user_ids and not _is_allowed(message.from_user.id, settings)
-    ):
-        await message.answer(Messages.ACCESS_DENIED)
-        return None
-
+async def _load_enabled_servers(message: Message) -> dict[str, ServerConfig] | None:
+    """Load servers enabled in the registry; access control runs in middleware."""
+    _settings, config_path = load_settings()
     registry = load_server_registry(config_path)
     enabled = registry.get_enabled_servers()
     if not enabled:
@@ -123,24 +115,32 @@ async def _send_ping(message: Message) -> None:
 
 
 @router.message(Command("status"))
-async def cmd_status(message: Message) -> None:
+async def cmd_status(message: Message, state: FSMContext, services: Services) -> None:
     """Handle /status command."""
+    await push_screen(state, "status")
     await _send_status(message)
+    await log_user_action(services, message, command="/status", action="monitor.status")
 
 
 @router.message(F.text == Messages.MENU_STATUS)
-async def btn_status(message: Message) -> None:
+async def btn_status(message: Message, state: FSMContext, services: Services) -> None:
     """Handle the Status Server menu button."""
+    await push_screen(state, "status")
     await _send_status(message)
+    await log_user_action(services, message, command=Messages.MENU_STATUS, action="monitor.status")
 
 
 @router.message(Command("ping"))
-async def cmd_ping(message: Message) -> None:
+async def cmd_ping(message: Message, state: FSMContext, services: Services) -> None:
     """Handle /ping command."""
+    await push_screen(state, "ping")
     await _send_ping(message)
+    await log_user_action(services, message, command="/ping", action="monitor.ping")
 
 
 @router.message(F.text == Messages.MENU_PING)
-async def btn_ping(message: Message) -> None:
+async def btn_ping(message: Message, state: FSMContext, services: Services) -> None:
     """Handle the Ping Server menu button."""
+    await push_screen(state, "ping")
     await _send_ping(message)
+    await log_user_action(services, message, command=Messages.MENU_PING, action="monitor.ping")

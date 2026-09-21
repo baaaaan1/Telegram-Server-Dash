@@ -1,5 +1,5 @@
 """Handlers package - all router definitions."""
 
-from handlers import common, echo, navigation, status
+from handlers import admin, common, critical, echo, monitor, navigation, status
 
-__all__ = ["common", "echo", "navigation", "status"]
+__all__ = ["admin", "common", "critical", "echo", "monitor", "navigation", "status"]

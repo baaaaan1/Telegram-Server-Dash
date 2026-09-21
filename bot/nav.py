@@ -70,11 +70,9 @@ class NavContext:
         stack = data.get("nav_stack", ["home"])
         return cls(stack=stack)
 
-    def save_to_fsm(self, context: FSMContext) -> None:
+    async def save_to_fsm(self, context: FSMContext) -> None:
         """Save current NavContext to FSM storage."""
-        import asyncio
-
-        asyncio.create_task(context.update_data(nav_stack=self.stack))
+        await context.update_data(nav_stack=self.stack)
 
     def go_home(self) -> str:
         """Navigate to home, replacing stack."""
@@ -102,6 +100,17 @@ class NavContext:
         """Cancel current operation, go to home."""
         self.stack = ["home"]
         return "home"
+
+
+async def push_screen(context: FSMContext, screen: str) -> None:
+    """Push a screen name onto the per-user navigation history."""
+    data = await context.get_data()
+    stack = list(data.get("nav_stack") or ["home"])
+    if not stack:
+        stack = ["home"]
+    if stack[-1] != screen:
+        stack.append(screen)
+    await context.update_data(nav_stack=stack)
 
 
 # Button to handler mapping (Reply Keyboard text -> action)

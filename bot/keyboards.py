@@ -91,20 +91,16 @@ def make_monitor_keyboard() -> ReplyKeyboardMarkup:
 
 
 def make_cancel_only_keyboard() -> ReplyKeyboardMarkup:
-    """Keyboard with only cancel button (for critical actions)."""
-    return make_reply_keyboard(
-        rows=[[KeyboardButton(text=Messages.BTN_CANCEL)]],
-        include_nav=False,
-    )
+    """Keyboard with only the navigation row (Cancel/Back/Home) for critical steps."""
+    return make_reply_keyboard(rows=None, include_nav=True)
 
 
 def make_confirm_keyboard() -> ReplyKeyboardMarkup:
-    """Keyboard with Yes/No for confirmations."""
+    """Keyboard with Yes/No for confirmations plus the standard navigation row."""
     return make_reply_keyboard(
         rows=[
-            [KeyboardButton(text="✅ Ya"), KeyboardButton(text="❌ Batal")],
-        ],
-        include_nav=False,
+            [KeyboardButton(text=Messages.BTN_YES), KeyboardButton(text=Messages.BTN_NO)],
+        ]
     )
 
 
