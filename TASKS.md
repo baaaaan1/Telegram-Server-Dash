@@ -16,7 +16,7 @@ Bot Telegram sebagai dashboard kontrol & monitoring VPS multi-server.
 - [x] **Struktur proyek:** siapkan folder `bot/`, `core/` (collector metrik), `db/`, `config/`, `handlers/`, `alerts/`, dan `plugins/`.
 - [x] **Konfigurasi & secrets:** file `.env` + `config.yaml` untuk daftar server, token bot, dan kredensial; jangan hardcode.
 - [x] **Fondasi deployment native:** service systemd dan `setup.sh` untuk install, update, configure, diagnostics, dan uninstall.
-- [x] **CI dasar:** lint (`ruff`/`black`) dan unit test otomatis saat push.
+- [x] **CI dasar:** lint (`ruff check` + `ruff format --check`) dan unit test (`pytest`) tersedia di GitHub Actions; trigger otomatis `push`/`pull_request` dimatikan, CI dijalankan manual via `workflow_dispatch`.
 
 ### Checklist Deployment Native
 
@@ -208,4 +208,4 @@ Bot aiogram berjalan dengan navigasi Reply Keyboard yang konsisten — setiap la
 1. Tidak ada penggunaan `InlineKeyboardMarkup` di seluruh codebase.
 2. Setiap handler/state menampilkan tombol `Cancel`, `Back`, `Home`.
 3. `Back` mengikuti riwayat navigasi; `Home` dan `Cancel` selalu menyediakan jalan keluar.
-4. Test transisi state dan navigasi lulus di CI.
+4. Test transisi state dan navigasi lulus saat CI dijalankan manual (`gh workflow run CI`).
