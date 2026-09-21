@@ -2,7 +2,6 @@
 
 Telegram Server Dash (TSD) adalah bot Telegram berbasis aiogram untuk monitoring VPS. MVP saat ini ditujukan untuk satu host: bot berjalan langsung sebagai service systemd dan `transport: local` membaca informasi VPS melalui utilitas Linux dan `/proc`.
 
-[![CI](https://github.com/baaaaan1/telegram-server-dash/actions/workflows/ci.yml/badge.svg)](https://github.com/baaaaan1/telegram-server-dash/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
