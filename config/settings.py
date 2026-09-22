@@ -126,6 +126,7 @@ class BotSettings(BaseSettings):
     auth_max_attempts: int = Field(default=5, alias="AUTH_MAX_ATTEMPTS", ge=1)
     auth_lockout_seconds: int = Field(default=900, alias="AUTH_LOCKOUT_SECONDS", ge=1)
     rate_limit_per_minute: int = Field(default=30, alias="RATE_LIMIT_PER_MINUTE", ge=1)
+    custom_emoji_ids: dict[str, str] = Field(default_factory=dict, alias="TSD_CUSTOM_EMOJI_IDS")
 
     model_config = {
         "env_file": ".env",

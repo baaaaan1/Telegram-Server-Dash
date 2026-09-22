@@ -188,6 +188,28 @@ Fitur manajemen privileged di masa depan harus memakai aturan sudoers sempit per
 
 Unit saat ini memakai `NoNewPrivileges=true`. Ketika fitur privileged ditambahkan, hardening ini harus ditinjau secara eksplisit bersama aturan sudoers per-command; jangan sekadar menonaktifkannya tanpa threat review.
 
+## Tampilan Pesan Bot
+
+Seluruh teks bot dirender sebagai HTML yang hanya memakai tag dari grammar
+formatting Bot API (`<b>`, `<i>`, `<u>`, `<s>`, `<span class="tg-spoiler">`,
+`<a>`, `<tg-emoji>`, `<tg-time>`, `<code>`, `<pre><code class="language-*">`, dan
+`<blockquote>`/`<blockquote expandable>`). Nilai dinamis di-escape sebelum
+dibungkus entity, dan `bot.formatting.validate_html()` dipakai di test untuk
+menjamin panjang pesan ≤4096 karakter serta jumlah entity ≤100 per pesan.
+
+Kontrak UX hybrid:
+
+- **Reply Keyboard tetap wajib** pada setiap layar (`Cancel`/`Back`/`Home`).
+- **Inline panel bersifat opsional** dan hanya menjadi overlay pada pesan
+  laporan: satu pesan navigasi (pembawa Reply Keyboard) + satu pesan laporan
+  berpanel.
+- Semua aksi panel (`Segarkan`, `Detail`/`Ringkas`, `Buka`/`Tutup` spoiler,
+  halaman server, tombol pintas, `📋 Salin` clipboard, dan `🌐 Dokumentasi`)
+  memakai `edit_text`/`edit_message_reply_markup` sehingga tidak menambah pesan
+  baru; callback divalidasi, diaudit, dan ikut melewati `AccessMiddleware`.
+- Warna tombol memakai `style` Bot API: `primary` (aksi biasa), `success` (mode
+  aktif/salin), dan `danger` (host bermasalah atau aksi batal).
+
 ## Development
 
 Gunakan Python 3.11 atau lebih baru:
@@ -233,6 +255,7 @@ Variabel runtime yang didukung:
 | `AUTH_MAX_ATTEMPTS` | Tidak | `5` | Kegagalan PIN sebelum akun terkunci |
 | `AUTH_LOCKOUT_SECONDS` | Tidak | `900` | Durasi lockout |
 | `RATE_LIMIT_PER_MINUTE` | Tidak | `30` | Batas pesan per user per menit |
+| `TSD_CUSTOM_EMOJI_IDS` | Tidak | kosong | Map JSON `{"refresh":"<id>"}` untuk ikon custom emoji pada tombol; nonaktif bila kosong |
 | `ENV` | Tidak | `dev` | Nama environment |
 | `DATABASE_PATH` | Tidak | `data/bot.db` | Path SQLite |
 | `TSD_CONFIG` | Tidak | `config/config.yaml` | Path registry YAML |

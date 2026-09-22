@@ -277,3 +277,98 @@ async def test_bot_sender_is_ignored(services, make_message):
 
     assert await build(services)(handler, message, {}) is None
     handler.assert_not_awaited()
+
+
+class TestCallbackGuards:
+    """Inline panel callbacks pass through the same access control as messages."""
+
+    @pytest.mark.asyncio
+    async def test_allowed_callback_injects_context(self, services, make_callback_query):
+        handler = AsyncMock(return_value="handled")
+        data: dict = {}
+        callback = make_callback_query(user_id=OPERATOR_ID)
+
+        result = await build(services)(handler, callback, data)
+
+        assert result == "handled"
+        assert data["role"] is Role.OPERATOR
+        assert data["auth_user"].user_id == OPERATOR_ID
+        assert data["services"] is services
+
+    @pytest.mark.asyncio
+    async def test_unknown_callback_user_is_denied_and_alerted(
+        self, services, make_callback_query, stub_bot, db
+    ):
+        handler = AsyncMock()
+        callback = make_callback_query(user_id=42)
+
+        result = await build(services)(handler, callback, {})
+
+        assert result is None
+        handler.assert_not_awaited()
+        assert stub_bot.session.answers == [Messages.ACCESS_DENIED]
+        row = db.fetchone("SELECT * FROM audit_log WHERE user_id = ?", (42,))
+        assert row is not None
+        assert row["action"] == "auth.denied.unknown"
+        assert stub_bot.session.sent[-1].chat_id == ADMIN_ID
+
+    @pytest.mark.asyncio
+    async def test_foreign_chat_callback_is_ignored(self, services, make_callback_query, stub_bot):
+        handler = AsyncMock()
+        callback = make_callback_query(user_id=VIEWER_ID, chat_id=ADMIN_ID)
+
+        assert await build(services)(handler, callback, {}) is None
+        handler.assert_not_awaited()
+        assert stub_bot.session.answers == []
+
+    @pytest.mark.asyncio
+    async def test_inaccessible_callback_message_is_ignored(
+        self, services, make_callback_query, stub_bot
+    ):
+        handler = AsyncMock()
+        callback = make_callback_query(with_message=False)
+
+        assert await build(services)(handler, callback, {}) is None
+        handler.assert_not_awaited()
+        assert stub_bot.session.answers == []
+
+    @pytest.mark.asyncio
+    async def test_callback_rate_limit_is_audited(self, db, make_callback_query, stub_bot):
+        settings = BotSettings(
+            _env_file=None,
+            bot_token="1:test-token",
+            admin_user_ids=[ADMIN_ID],
+            rate_limit_per_minute=1,
+        )
+        services = build_services(settings, db)
+        middleware = build(services)
+        handler = AsyncMock(return_value="ok")
+
+        assert await middleware(handler, make_callback_query(), {}) == "ok"
+
+        assert await middleware(handler, make_callback_query(), {}) is None
+        assert "Terlalu banyak permintaan" in stub_bot.session.answers[-1]
+
+        row = db.fetchone("SELECT * FROM audit_log WHERE action = ?", ("rate_limit.denied",))
+        assert row is not None
+        assert row["command"].startswith("tsd:")
+
+    @pytest.mark.asyncio
+    async def test_callback_labels_are_truncated_for_audit(self, services, make_callback_query, db):
+        handler = AsyncMock()
+        data = "tsd:i:status:c:0:1" + "x" * 200
+        callback = make_callback_query(user_id=42, data=data)
+
+        await build(services)(handler, callback, {})
+
+        row = db.fetchone("SELECT command FROM audit_log WHERE user_id = ?", (42,))
+        assert row["command"] == data[:64]
+
+    @pytest.mark.asyncio
+    async def test_bot_sender_callback_is_ignored(self, services, make_callback_query, stub_bot):
+        handler = AsyncMock()
+        callback = make_callback_query(is_bot=True)
+
+        assert await build(services)(handler, callback, {}) is None
+        handler.assert_not_awaited()
+        assert stub_bot.session.answers == []

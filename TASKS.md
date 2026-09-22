@@ -241,17 +241,28 @@ Fokus hanya pada 6 hal ini agar cepat jalan:
 Task pengembangan bot Telegram dengan **Python + `aiogram`** yang menjadi fondasi seluruh handler. Semua fitur di §1–§7 harus mengikuti kontrak UX di bawah ini.
 
 - [x] **Bootstrap aiogram:** set up `Dispatcher` + `Bot` dengan long polling, integrasi `config.yaml`/`.env`, inisialisasi database, serta registrasi router per modul (`handlers/`).
-- [ ] **Reply Keyboard only:** semua interaksi memakai `ReplyKeyboardMarkup`; **dilarang memakai `InlineKeyboardMarkup`** — termasuk untuk menu, konfirmasi, pemilihan server, dan paginasi.
-- [ ] **Tombol navigasi wajib:** setiap state/page menyertakan tiga tombol tetap — `Cancel` (batalkan proses berjalan ke konteks aman), `Back` (kembali ke state sebelumnya via riwayat navigasi, bukan sekadar root), dan `Home` (langsung ke menu utama + reset konteks).
-- [ ] **State machine terpusat:** kelola alur dengan `aiogram` FSM (`StatesGroup` + `MemoryStorage`/Redis) sehingga transisi state konsisten dan bisa dibatalkan dari mana saja.
-- [ ] **Manajemen konteks:** simpan konteks aktif per user (server terpilih, menu, breadcrumb) agar `Back`/`Cancel`/`Home` berperilaku benar.
-- [ ] **Stack navigasi:** riwayat menu (push/pop) supaya `Back` menelusuri jalur yang benar, dengan perilaku aman saat riwayat kosong.
-- [ ] **Pembersihan keyboard:** hapus Reply Keyboard yang menggantung (`ReplyKeyboardRemove`) saat `Home`/`Cancel`, dan cegah tombol lama tetap terkirim sebagai input.
-- [ ] **Konsistensi UX:** label tombol ringkas dan konsisten, pesan konfirmasi jelas, tidak ada dead-end — setiap layar punya jalan keluar.
-- [ ] **Pesan yang bisa di-edit:** gunakan satu pesan dashboard yang di-edit berkala (`edit_text` di message id yang sama), bukan spam pesan baru.
-- [ ] **Guardrail input:** validasi input teks user saat FSM menunggu nilai (mis. nama service, path file) dan tangani tombol navigasi di setiap state.
-- [ ] **Error boundary:** handler error global yang mengembalikan user ke `Home` dengan pesan ramah, plus logging ke audit trail.
-- [ ] **Test alur:** unit test untuk transisi state dan tombol navigasi (Cancel/Back/Home) memakai mock update aiogram.
+- [~] **Reply Keyboard sebagai navigasi wajib:** seluruh interaksi tetap memakai `ReplyKeyboardMarkup`; `InlineKeyboardMarkup` hanya diizinkan sebagai **overlay pelengkap** pada pesan laporan (lihat §10.1) dan tidak boleh menggantikan tombol `Cancel`/`Back`/`Home`.
+- [x] **Tombol navigasi wajib:** setiap state/page menyertakan tiga tombol tetap — `Cancel` (batalkan proses berjalan ke konteks aman), `Back` (kembali ke state sebelumnya via riwayat navigasi, bukan sekadar root), dan `Home` (langsung ke menu utama + reset konteks).
+- [x] **State machine terpusat:** kelola alur dengan `aiogram` FSM (`StatesGroup` + `MemoryStorage`/Redis) sehingga transisi state konsisten dan bisa dibatalkan dari mana saja.
+- [x] **Manajemen konteks:** simpan konteks aktif per user (server terpilih, menu, breadcrumb) agar `Back`/`Cancel`/`Home` berperilaku benar.
+- [x] **Stack navigasi:** riwayat menu (push/pop) supaya `Back` menelusuri jalur yang benar, dengan perilaku aman saat riwayat kosong.
+- [x] **Pembersihan keyboard:** hapus Reply Keyboard yang menggantung (`ReplyKeyboardRemove`) saat `Home`/`Cancel`, dan cegah tombol lama tetap terkirim sebagai input.
+- [x] **Konsistensi UX:** label tombol ringkas dan konsisten, pesan konfirmasi jelas, tidak ada dead-end — setiap layar punya jalan keluar.
+- [x] **Pesan yang bisa di-edit:** satu pesan laporan yang di-edit (`edit_text`) oleh aksi panel, bukan spam pesan baru.
+- [x] **Guardrail input:** validasi input teks user saat FSM menunggu nilai (mis. nama service, path file) dan tangani tombol navigasi di setiap state.
+- [x] **Error boundary:** handler error global yang mengembalikan user ke `Home` dengan pesan ramah, plus logging ke audit trail.
+- [x] **Test alur:** unit test untuk transisi state dan tombol navigasi (Cancel/Back/Home) memakai mock update aiogram.
+
+### 10.1 Overlay Inline (Pelengkap)
+
+- [x] **Formatting entity-compliant:** `bot/formatting.py` membungkus `aiogram.utils.text_decorations` dengan escaping wajib, hanya mengeluarkan tag yang sah menurut Bot API (bold, italic, underline, strike, spoiler, code, pre, link, blockquote/expandable, `tg-time`, `tg-emoji`), dan menyediakan `validate_html()` (batas 4096 karakter / 100 entity).
+- [x] **Pesan kaya & bervariasi:** `bot/texts.py` memakai blok kutipan, blok expandable, spoiler, `pre` ber-highlight, dan deskripsi metode tiap dashboard secukupnya (bukan satu gaya monoton).
+- [x] **Tombol bergaya:** overlay memakai `style` Bot API (`primary`/`success`/`danger`), label ikon, tombol `copy_text` untuk salin laporan, dan tombol URL dokumentasi; Reply Keyboard ikut memakai `style`.
+- [x] **Aksi panel:** `Segarkan` (kumpulkan ulang metrik), `Detail`/`Ringkas`, `Buka`/`Tutup` nilai sensitif, paginasi server/help, tombol pintas antar dashboard — semuanya `edit_text` pada pesan yang sama.
+- [x] **Kontrak callback:** payload `tsd:<aksi>:<layar>:<view>:<reveal>:<halaman>` ≤64 byte, divalidasi ketat saat decode, dan aksi tak dikenal dijawab alert tanpa menyentuh pesan.
+- [x] **Keamanan callback:** `AccessMiddleware` juga terpasang di `dp.callback_query.outer_middleware` (whitelist, lockout, RBAC, rate limit, audit), plus guard kepemilikan panel (`chat.id == from_user.id`).
+- [x] **Audit panel:** setiap aksi panel tercatat (`panel.<aksi>`) termasuk aksi yang ditolak (`panel.denied.unknown`, `panel.denied.foreign`).
+- [x] **Test:** `tests/test_formatting.py`, `tests/test_inline.py`, `tests/test_panel_handlers.py`, `tests/test_render_reports.py`, `tests/test_app_wiring.py::test_help_panel_page_is_edited_in_place`, `tests/test_middleware.py::TestCallbackGuards`.
 
 ### Aturan Navigasi
 
@@ -263,11 +274,12 @@ Task pengembangan bot Telegram dengan **Python + `aiogram`** yang menjadi fondas
 
 ### Deliverable
 
-Bot aiogram berjalan dengan navigasi Reply Keyboard yang konsisten — setiap layar punya tombol `Cancel`, `Back`, dan `Home` — tanpa satu pun Inline Keyboard, dan alur state teruji otomatis.
+Bot aiogram berjalan dengan navigasi Reply Keyboard yang konsisten — setiap layar punya tombol `Cancel`, `Back`, dan `Home` — dengan panel inline opsional yang hanya meng-edit pesan laporan, dan alur state teruji otomatis.
 
 ### Kriteria Selesai
 
-1. Tidak ada penggunaan `InlineKeyboardMarkup` di seluruh codebase.
-2. Setiap handler/state menampilkan tombol `Cancel`, `Back`, `Home`.
+1. `InlineKeyboardMarkup` hanya muncul di `bot/inline.py` (builder) dan dipakai sebagai overlay pesan laporan; tidak ada handler yang bergantung padanya untuk keluar dari suatu state.
+2. Setiap handler/state menampilkan tombol `Cancel`, `Back`, `Home` pada Reply Keyboard.
 3. `Back` mengikuti riwayat navigasi; `Home` dan `Cancel` selalu menyediakan jalan keluar.
-4. Test transisi state dan navigasi lulus saat CI dijalankan manual (`gh workflow run CI`).
+4. Aksi panel memakai `edit_text`/`edit_message_reply_markup` pada pesan yang sama (tidak menambah pesan baru) dan lolos `AccessMiddleware`.
+5. Test transisi state, navigasi, entity formatting, dan aksi panel lulus saat CI dijalankan manual (`gh workflow run CI`).
