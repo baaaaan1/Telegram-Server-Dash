@@ -52,8 +52,7 @@ jobs:
         run: |
           bash -n setup.sh
           bash -n deploy/lib/ui.sh
-          shellcheck setup.sh
-          shellcheck deploy/lib/ui.sh
+          shellcheck -x setup.sh deploy/lib/ui.sh
       - name: Smoke test the CLI surface
         run: |
           ./setup.sh --version
