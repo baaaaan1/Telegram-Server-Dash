@@ -1,4 +1,8 @@
-"""Navigation handler - Home/Back/Cancel button routing."""
+"""Navigation handler - Home/Back/Cancel button routing.
+
+The Reply Keyboard keeps the three escape hatches on every screen; inline panels
+only ever re-render report messages and never remove them.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +16,7 @@ from bot.keyboards import make_home_keyboard
 from bot.nav import NavContext
 from bot.services import Services, log_user_action
 from bot.texts import Messages
+from handlers.common import send_home
 from handlers.critical import PinFlow
 
 router = Router()
@@ -20,10 +25,10 @@ MODAL_FLOW_STATES = frozenset(state.state for state in PinFlow.__states__)
 
 
 @router.message(F.text == Messages.BTN_HOME)
-async def btn_home(message: Message, state: FSMContext) -> None:
+async def btn_home(message: Message, state: FSMContext, services: Services) -> None:
     """Handle Home button - reset context and go to the main menu."""
-    await state.clear()
-    await message.answer(Messages.WELCOME_ID, reply_markup=make_home_keyboard())
+    await send_home(message, state, services)
+    await log_user_action(services, message, command="/home", action="nav.home")
 
 
 @router.message(F.text == Messages.BTN_BACK)
@@ -44,10 +49,15 @@ async def btn_back(message: Message, state: FSMContext, services: Services) -> N
 
     if previous:
         await message.answer(
-            f"← Kembali ke <b>{html.escape(previous)}</b>", reply_markup=make_home_keyboard()
+            Messages.BACK_TO.format(screen=html.escape(previous)),
+            reply_markup=make_home_keyboard(services.settings.custom_emoji_ids),
         )
     else:
-        await message.answer("ℹ️ Anda sudah di halaman utama.", reply_markup=make_home_keyboard())
+        await message.answer(
+            Messages.BACK_AT_ROOT,
+            reply_markup=make_home_keyboard(services.settings.custom_emoji_ids),
+        )
+    await log_user_action(services, message, command="/back", action="nav.back")
 
 
 @router.message(F.text == Messages.BTN_CANCEL)

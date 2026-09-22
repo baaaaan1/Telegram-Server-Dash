@@ -10,7 +10,7 @@ from core.auth import AuthService
 from core.rate_limit import RateLimiter
 
 if TYPE_CHECKING:
-    from aiogram.types import Message
+    from aiogram.types import CallbackQuery, Message
 
     from config.settings import AppSettings
     from db.database import Database
@@ -44,15 +44,15 @@ def build_services(settings: AppSettings, db: Database) -> Services:
 
 async def log_user_action(  # noqa: PLR0913 - explicit fields keep call sites readable
     services: Services,
-    message: Message,
+    event: Message | CallbackQuery,
     *,
     command: str,
     action: str,
     result: str = "ok",
     server_name: str | None = None,
 ) -> None:
-    """Record a user action in the audit trail."""
-    user = message.from_user
+    """Record a user action in the audit trail (messages and inline callbacks)."""
+    user = event.from_user
     if user is None:
         return
     await services.audit.log(

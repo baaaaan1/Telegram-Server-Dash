@@ -31,15 +31,19 @@ def build_dispatcher(settings: AppSettings, services: Services) -> Dispatcher:
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    dp.message.outer_middleware(AccessMiddleware(services))
+    # Both entry points are guarded: text messages and inline-panel callbacks.
+    access = AccessMiddleware(services)
+    dp.message.outer_middleware(access)
+    dp.callback_query.outer_middleware(access)
 
-    from handlers import admin, common, critical, echo, monitor, navigation, status
+    from handlers import admin, common, critical, echo, inline, monitor, navigation, status
 
     # Navigation routers come first so Cancel/Back/Home always win over FSM handlers.
     dp.include_router(common.router)
     dp.include_router(navigation.router)
     dp.include_router(critical.router)
     dp.include_router(admin.router)
+    dp.include_router(inline.router)
     dp.include_router(status.router)
     dp.include_router(monitor.router)
     dp.include_router(echo.router)
