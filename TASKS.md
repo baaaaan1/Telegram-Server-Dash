@@ -16,6 +16,7 @@ Bot Telegram sebagai dashboard kontrol & monitoring VPS multi-server.
 - [x] **Struktur proyek:** siapkan folder `bot/`, `core/` (collector metrik), `db/`, `config/`, `handlers/`, `alerts/`, dan `plugins/`.
 - [x] **Konfigurasi & secrets:** file `.env` + `config.yaml` untuk daftar server, token bot, dan kredensial; jangan hardcode.
 - [x] **Fondasi deployment native:** service systemd dan `setup.sh` untuk install, update, configure, diagnostics, dan uninstall.
+- [x] **UI CLI lifecycle:** header ASCII, color coding (sukses/gagal/peringatan/info), progress bertahap per langkah, spinner untuk proses panjang, panel ringkasan dan tabel, serta blok error yang menyebut langkah, perintah, exit code, dan lokasi baris. Presentasi dipisah ke `deploy/lib/ui.sh`; chrome ke stderr dan data ke stdout; warna/animasi/glyph otomatis nonaktif saat bukan TTY atau memakai `--plain`/`NO_COLOR`.
 - [x] **CI dasar:** lint (`ruff check` + `ruff format --check`) dan unit test (`pytest`) tersedia di GitHub Actions; trigger otomatis `push`/`pull_request` dimatikan, CI dijalankan manual via `workflow_dispatch`.
 
 ### Checklist Deployment Native

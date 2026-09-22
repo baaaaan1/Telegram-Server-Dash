@@ -73,6 +73,38 @@ sudo ./setup.sh uninstall --purge
 - `uninstall`: menghapus service dan `/opt`, tetapi mempertahankan konfigurasi/data.
 - `uninstall --purge`: juga menghapus konfigurasi/data setelah konfirmasi eksplisit.
 
+#### Tampilan CLI
+
+Setiap perintah yang berjalan di TTY menampilkan header bergaya, progress bertahap
+(`[##....] 3/8  Validating the release`), spinner untuk proses panjang, panel ringkasan
+berbentuk kotak, tabel, dan blok error yang menyebut langkah, perintah, exit code, serta
+lokasi baris yang gagal. Presentasi diatur oleh `deploy/lib/ui.sh`.
+
+Pemisahan stream dijaga agar output aman di-pipe:
+
+- **stderr** untuk chrome: banner, progress, spinner, diagnostik, dan error.
+- **stdout** untuk data: panel ringkasan, tabel, dan output journal.
+
+```bash
+sudo ./setup.sh status > status.txt   # data tetap bersih tanpa banner maupun progress
+```
+
+Opsi global yang tersedia untuk semua perintah:
+
+```bash
+sudo ./setup.sh --help
+sudo ./setup.sh --version
+sudo ./setup.sh --no-color status    # matikan warna ANSI
+sudo ./setup.sh --plain status       # tanpa warna, glyph unicode, dan animasi
+sudo ./setup.sh --no-animation install
+sudo ./setup.sh --no-banner install
+```
+
+Variabel lingkungan yang setara: `NO_COLOR`, `TSD_NO_COLOR`, `TSD_PLAIN`, `TSD_ASCII`,
+`TSD_NO_ANIMATION`, dan `TSD_NO_BANNER`. Warna, glyph unicode, dan animasi hanya aktif
+pada TTY yang mendukung; ketika output dialihkan ke file, ke journald, atau ke CI, CLI
+otomatis memakai output ASCII tanpa escape sequence.
+
 Update kode produksi dilakukan dari checkout:
 
 ```bash

@@ -48,10 +48,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate setup script
+      - name: Validate shell entrypoints
         run: |
           bash -n setup.sh
+          bash -n deploy/lib/ui.sh
           shellcheck setup.sh
+          shellcheck deploy/lib/ui.sh
+      - name: Smoke test the CLI surface
+        run: |
+          ./setup.sh --version
+          ./setup.sh --help > /dev/null
+          if ./setup.sh install > /dev/null 2>&1; then
+            echo "install must refuse to run without root" >&2
+            exit 1
+          fi
+          if ./setup.sh frobnicate > /dev/null 2>&1; then
+            echo "unknown commands must exit non-zero" >&2
+            exit 1
+          fi
+          ./setup.sh --plain --no-banner status > /dev/null 2>&1 || true
       - name: Verify systemd unit
         run: |
           sudo useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin --user-group tsd
