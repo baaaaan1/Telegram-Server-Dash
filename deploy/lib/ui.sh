@@ -399,15 +399,6 @@ ui_die() {
 }
 
 ui_rule() {
-    local label="${1:-}" fill=0 line=""
-    if [[ -n "${label}" ]]; then
-        fill=$(( UI_WRAP_WIDTH - ${#label} - 1 ))
-        if (( fill > 0 )); then
-            line=" $(ui__repeat "${UI_G_RULE}" "${fill}")"
-        fi
-        printf '  %s%s%s%s\n' "${label}" "${UI_C_DIM}" "${line}" "${UI_C_RESET}" >&2
-        return 0
-    fi
     printf '  %s%s%s\n' "${UI_C_DIM}" "$(ui__repeat "${UI_G_RULE}" "${UI_WRAP_WIDTH}")" "${UI_C_RESET}" >&2
     return 0
 }
