@@ -36,6 +36,27 @@ class TestDatabase:
         assert SCHEMA_SQL
         assert "audit_log" in SCHEMA_SQL
 
+    def test_wal_mode_and_busy_timeout(self, tmp_path):
+        """The shared connection uses WAL and a busy timeout."""
+        db_path = tmp_path / "wal.db"
+        db = Database(db_path)
+        db.init()
+
+        journal_mode = db.fetchone("PRAGMA journal_mode")
+        assert str(journal_mode[0]).lower() == "wal"
+        busy_timeout = db.fetchone("PRAGMA busy_timeout")
+        assert int(busy_timeout[0]) == 5000
+
+    def test_connection_is_reused(self, tmp_path):
+        """Statements reuse one connection instead of reconnecting."""
+        db = Database(tmp_path / "reuse.db")
+        db.init()
+
+        with db.get_connection() as first:
+            pass
+        with db.get_connection() as second:
+            assert first is second
+
 
 class TestDatabaseSingleton:
     """Tests for database singleton functions."""

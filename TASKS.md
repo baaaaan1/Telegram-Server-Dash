@@ -2,9 +2,9 @@
 
 Bot Telegram sebagai dashboard kontrol & monitoring VPS multi-server.
 
-- **Status:** Perencanaan
+- **Status:** Implementasi berjalan — fondasi (§0) dan Autentikasi & Kontrol Akses (§1) selesai di kode dengan test otomatis (164 test lulus); fitur §2–§7 masih perencanaan
 - **Direktori:** `G:\Private Project\Telegram Server Dash`
-- **Legenda:** `[ ]` belum, `[~]` dikerjakan, `[x]` selesai
+- **Legenda:** `[ ]` belum, `[~]` dikerjakan, `[x]` selesai (implementasi + test otomatis, belum tentu sudah terverifikasi di host produksi), `[!]` butuh aksi/verifikasi manual di host produksi
 
 ---
 
@@ -25,9 +25,9 @@ Bot Telegram sebagai dashboard kontrol & monitoring VPS multi-server.
 - [x] Token disimpan pada environment file mode `0600` di luar checkout aplikasi.
 - [x] Database SQLite persisten di `/var/lib/telegram-server-dash/bot.db`.
 - [x] Alur update dan uninstall mempertahankan konfigurasi serta data secara default.
-- [ ] Dokumentasikan dan uji prosedur backup/restore pada host produksi.
-- [ ] Tambahkan aturan sudoers per-command sebelum fitur manajemen privileged diaktifkan; jangan jalankan bot sebagai root.
-- [ ] Uji installer end-to-end pada Ubuntu dan Debian bersih.
+- [!] Dokumentasikan dan uji prosedur backup/restore pada host produksi.
+- [!] Tambahkan aturan sudoers per-command sebelum fitur manajemen privileged diaktifkan; jangan jalankan bot sebagai root.
+- [!] Uji installer end-to-end pada Ubuntu dan Debian bersih.
 
 ### Deliverable
 Bot echo sederhana berjalan, siap menerima handler baru, dan terhubung ke satu server uji.
@@ -36,14 +36,75 @@ Bot echo sederhana berjalan, siap menerima handler baru, dan terhubung ke satu s
 
 ## 1. Autentikasi & Kontrol Akses (Prasyarat Semua Fitur)
 
-- [ ] **Whitelist Telegram user ID:** hanya ID terdaftar yang boleh memakai bot; tolak akses lain + notifikasi ke admin.
-- [ ] **Role-Based Access Control (RBAC):** role `admin` (semua aksi), `operator` (monitoring + service), `viewer` (hanya baca).
-- [ ] **PIN / 2FA untuk aksi kritikal:** reboot, kill proses, hapus file, ubah firewall wajib konfirmasi PIN.
-- [ ] **Rate limiting & lockout:** batas command per menit per user; lockout setelah N kali gagal auth.
-- [ ] **Audit trail:** simpan log semua aksi (user, command, server, waktu, hasil) ke database + kirim copy ke channel log.
+**Status: selesai** (implementasi + test, 164 test lulus, `ruff check` bersih).
+
+Modul: `config/settings.py`, `db/schema.py`, `db/database.py`, `core/auth.py`, `core/rate_limit.py`, `core/audit.py`, `bot/services.py`, `bot/middleware.py`, `handlers/critical.py`, `handlers/admin.py`.
+
+### Kebutuhan Teknis Bersama
+
+| Aspek | Ketentuan |
+|---|---|
+| Enforcement point | Satu `AccessMiddleware` terdaftar sebagai `dp.message.outer_middleware` (lihat `bot/app.py`); seluruh handler berada di belakangnya sehingga tidak ada command yang lolos tanpa autentikasi. |
+| Injeksi konteks | Middleware menyuntikkan `services`, `auth_user`, dan `role` ke `data` handler. Handler tidak lagi membaca `.env` untuk otorisasi. |
+| Konfigurasi | `ADMIN_USER_IDS`, `OPERATOR_USER_IDS`, `VIEWER_USER_IDS` (entri `ID` atau `ID:username`), `STRICT_USERNAME_MATCH`, `TSD_PIN`, `PIN_TTL_SECONDS`, `AUTH_MAX_ATTEMPTS`, `AUTH_LOCKOUT_SECONDS`, `RATE_LIMIT_PER_MINUTE`. |
+| Cakupan chat | Hanya private chat; update dari grup/kanal dan user bot diabaikan (`return None`). |
+| Default aman | Tanpa user terdaftar semua akses ditolak (default-deny). Sebelumnya daftar admin kosong berarti *allow-all*; sekarang tidak. |
+| Tabel SQLite | `users` (role, PIN hash, `is_active`, `failed_attempts`, `locked_until`, `pin_verified_until`, `last_seen`) dan `rate_limit_counters` (fixed window per user). Satu koneksi bersama, `journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000` agar jalur auth/rate-limit/audit per pesan tidak membuka koneksi baru. |
+| Redaksi rahasia | Jalur penolakan dan rate limit hanya mencatat label aman; isi pesan berbentuk PIN di-mask menjadi `<pin>` di audit trail dan alert admin (PIN tidak pernah tersimpan atau tersiar). |
+| Fail-safe audit | Kegagalan tulis/mirror audit ditangkap dan di-log, tidak menggagalkan aksi user. |
+
+- [x] **Whitelist Telegram user ID:** hanya ID terdaftar yang boleh memakai bot; tolak akses lain + notifikasi ke admin.
+  - Langkah: seed/refresh whitelist saat startup (`build_services()` → `AuthService.sync_users_from_settings()`) dengan upsert ke tabel `users`; role dan `is_active=1` diperbarui, PIN serta hitungan lockout tidak ditimpa.
+  - Langkah: rekonsiliasi env → DB — ID yang tidak lagi tercantum di daftar env dinonaktifkan saat sync sehingga offboarding lewat env benar-benar mencabut akses; ID yang ditambahkan kembali otomatis aktif.
+  - Langkah: verifikasi **ID + username** — entri whitelist boleh ditulis `ID:username` (mis. `ADMIN_USER_IDS=123456789:namauser`); bila binding ada, pesan hanya lolos ketika ID dan username cocok (normalisasi tanpa `@`, case-insensitive). Status penolakan baru `USERNAME_MISMATCH` → balasan khusus, audit `auth.denied.username_mismatch`, dan alert admin berisi username yang dipakai pengirim.
+  - Langkah: mode ketat `STRICT_USERNAME_MATCH=1` mewajibkan binding username untuk semua entri whitelist; startup gagal cepat dengan pesan perbaikan bila ada ID tanpa binding. Tanpa strict, admin tanpa binding tetap masuk tetapi dicatat sebagai warning di journal.
+  - Langkah: middleware memanggil `AuthService.authenticate(user_id, username)` pada setiap pesan; status `UNKNOWN`/`INACTIVE`/`LOCKED`/`USERNAME_MISMATCH` langsung ditolak sebelum handler.
+  - Teknis: notifikasi pelanggaran dikirim ke semua `ADMIN_USER_IDS` + `LOG_CHAT_ID`, dengan cooldown 10 menit per user (`ADMIN_NOTIFY_COOLDOWN_SECONDS`) supaya tidak spam.
+  - Teknis: `last_seen` dan `username` diperbarui lazy (throttle 60 detik) tanpa menulis DB di setiap pesan; `/whoami` dan `/users` menampilkan status binding (`terikat @username`).
+  - Teknis: parsing whitelist dari env memakai `NoDecode` + `parse_user_ids()` sehingga `ADMIN_USER_IDS=123456789` (gaya `setup.sh`) dan `1,2` sama-sama valid; sebelumnya ID tunggal diam-diam menjadi `[]` dan daftar koma membuat startup gagal.
+  - Uji: `tests/test_middleware.py`, `tests/test_app_wiring.py` (dispatcher asli + sesi Telegram stub), `tests/test_config.py::TestUserIdsParsing`.
+
+- [x] **Role-Based Access Control (RBAC):** role `admin` (semua aksi), `operator` (monitoring + service), `viewer` (hanya baca).
+  - Langkah: definisikan `Role` dan `Permission` beserta matriks `ROLE_PERMISSIONS` di `core/auth.py`.
+  - Teknis: permission MVP — `view_status` (viewer+), `manage_service` & `exec_command` (operator+), `critical_action`, `manage_users`, `view_audit` (admin).
+  - Teknis: `has_permission()` bersifat default-deny untuk role/permission tak dikenal; role tersimpan di DB dan dapat diubah via `AuthService.set_role()` (dipakai saat UI manajemen user ditambahkan).
+  - Teknis: pengguna yang ada di beberapa daftar env memakai role tertinggi (admin > operator > viewer).
+  - Teknis: kebijakan per aksi fleksibel — `CriticalActionSpec.permission` dapat di-override handler §3/§4 (mis. kill proses memakai `exec_command` untuk operator, reboot/firewall tetap `critical_action` untuk admin).
+  - Teknis: `/whoami` menampilkan ID, role, status PIN, status lockout, dan daftar permission aktif.
+  - Uji: `tests/test_auth.py::TestRolePermissions`, `tests/test_pin_flow.py::TestWhoami`, `tests/test_app_wiring.py`.
+
+- [x] **PIN / 2FA untuk aksi kritikal:** reboot, kill proses, hapus file, ubah firewall wajib konfirmasi PIN.
+  - Langkah: implementasikan alur konfirmasi Reply Keyboard–only di `handlers/critical.py`: `request_critical_action()` → state `PinFlow.confirm_action` (tombol `✅ Ya` / `❌ Batal` + baris navigasi) → state `PinFlow.enter_pin` bila PIN belum terverifikasi.
+  - Langkah: registry aksi kritikal (`register_critical_action(spec, executor)`) agar handler fitur §3/§4 cukup mendaftarkan executor-nya; eksekusi hanya dipanggil setelah PIN benar (atau TTL masih berlaku).
+  - Teknis: PIN disimpan sebagai hash PBKDF2-HMAC-SHA256 (120.000 iterasi, salt acak, format `pbkdf2_sha256$iterations$salt$hash`) di kolom `users.pin_hash`; `TSD_PIN` hanya menjadi fallback awal sebelum user mengatur PIN sendiri via `/pin`.
+  - Teknis: format PIN 4–8 digit angka, divalidasi di `normalize_pin()` (dipakai config, `/pin`, dan input aksi kritikal); PIN tidak pernah ditampilkan kembali atau ditulis ke log/audit (audit mencatat `<pin>`).
+  - Teknis: `PIN_TTL_SECONDS` (default 300) menyimpan stempel `pin_verified_until`; `0` berarti PIN selalu diminta. Konfirmasi Ya/Batal tetap wajib bahkan saat TTL aktif.
+  - Teknis: guardrail state — teks bebas saat konfirmasi dijawab `Pilih ✅ Ya atau ❌ Batal`, tombol `Cancel`/`Back`/`Home` selalu tersedia; `Cancel` maupun `Back` membatalkan konfirmasi yang sedang aktif (tidak ada aksi kritikal yang tetap "terpasang" di latar belakang).
+  - Teknis: percobaan aksi kritikal tanpa permission dicatat sebagai `auth.denied.permission` di audit trail.
+  - Uji: `tests/test_pin_flow.py` (setup, ganti PIN, konfirmasi, pembatalan, penolakan role viewer, guardrail, TTL).
+
+- [x] **Rate limiting & lockout:** batas command per menit per user; lockout setelah N kali gagal auth.
+  - Langkah: `core/rate_limit.py` menerapkan fixed window 60 detik per user dengan UPSERT atomik pada tabel `rate_limit_counters`; baris window lama dibersihkan otomatis.
+  - Teknis: batas dari `RATE_LIMIT_PER_MINUTE` (default 30). Melebihi batas → balasan `⏳ Terlalu banyak permintaan...` berisi `retry_after`, ditulis ke audit sebagai `rate_limit.denied`, dan handler tidak dijalankan.
+  - Teknis: tombol `Cancel`/`Back`/`Home` dikecualikan dari rate limit agar jalan keluar selalu tersedia (tidak ada dead-end); untuk pengirim tak dikenal, pesan di atas kuota diabaikan tanpa balasan dan tanpa entri audit tambahan agar flood tidak bisa amplifier balasan/DB.
+  - Teknis: lockout via `AuthService.register_failed_attempt()` — setelah `AUTH_MAX_ATTEMPTS` (default 5) kegagalan PIN beruntun, user dikunci `AUTH_LOCKOUT_SECONDS` (default 900) dan semua pesannya ditolak dengan sisa waktu; PIN yang benar mereset hitungan.
+  - Teknis: setelah masa lockout berakhir, hitungan kegagalan direset (`authenticate`/`register_failed_attempt`) sehingga user kembali mendapat kuota percobaan penuh, bukan terkunci ulang oleh sisa hitungan lama.
+  - Teknis: pemulihan admin `/unlock <user_id>` (permission `manage_users`) untuk membersihkan lockout.
+  - Teknis: percobaan gagal (PIN salah, akses ditolak, permission ditolak, rate limit) semuanya tercatat di audit trail; isi pesan berbentuk PIN di-redact menjadi `<pin>`.
+  - Uji: `tests/test_rate_limit.py`, `tests/test_auth.py::TestLockout`, `tests/test_middleware.py`, `tests/test_admin_handlers.py::TestUnlockCommand`.
+
+- [x] **Audit trail:** simpan log semua aksi (user, command, server, waktu, hasil) ke database + kirim copy ke channel log.
+  - Langkah: `core/audit.py` menulis setiap aksi ke tabel `audit_log` (sudah ada) dan, bila `LOG_CHAT_ID` diisi, mengirim salinan berformat HTML ke channel tersebut.
+  - Teknis: entri berisi `user_id`, `username`, `command`, `server_name`, `action`, `result`, `timestamp`; `action` memakai namespace `auth.*`, `critical.*`, `monitor.*`, `admin.*`, `nav.*`, `rate_limit.*`.
+  - Teknis: command monitoring (`/status`, `/ping`, `/monitor`, `/cpu`, `/mem`, `/net`, `/disk`, `/proc`) menulis audit dengan command yang dipakai user (slash command atau label tombol) dan nama server pada aksi kritikal.
+  - Teknis: mirror dibungkus `try/except` — kegagalan Telegram tidak pernah menggagalkan aksi; `AuditLogger.fetch_recent()` dipakai admin untuk inspeksi via `/audit [n]` (maks 25 entri).
+  - Teknis: input user selalu di-escape HTML sebelum dikirim (anti-injection pada ParseMode.HTML).
+  - Uji: `tests/test_audit.py`, `tests/test_admin_handlers.py::TestAuditCommand`, `tests/test_middleware.py`.
 
 ### Deliverable
 Tidak ada command yang bisa dieksekusi sebelum user terautentikasi dan lolos RBAC.
+
+Verifikasi: `pytest -q` (164 lulus) dan `ruff check .` + `ruff format --check .` bersih; alur nyata diuji lewat `Dispatcher.feed_update` dengan sesi Telegram stub di `tests/test_app_wiring.py`. Verifikasi pada host produksi menunggu item §0 (`[!]`): uji installer end-to-end dan uji backup/restore.
 
 ---
 
@@ -147,12 +208,12 @@ Satu bot dapat mengelola banyak VPS dengan pengalaman chat yang konsisten.
 
 Fokus hanya pada 6 hal ini agar cepat jalan:
 
-1. [ ] Autentikasi user ID + RBAC dasar.
+1. [x] Autentikasi user ID + RBAC dasar (selesai; lihat §1).
 2. [ ] `/status` — CPU, RAM, disk, uptime, load.
 3. [ ] Manajemen service systemd (status/start/stop/restart).
 4. [ ] Exec command dengan whitelist.
 5. [ ] Alert threshold dasar (CPU/RAM/disk) + service down.
-6. [ ] Audit trail aksi user.
+6. [x] Audit trail aksi user (selesai; lihat §1).
 
 **Kriteria rilis MVP:** admin bisa memantau dan mengendalikan satu VPS penuh dari Telegram dengan aman, dan menerima alert saat resource kritis.
 

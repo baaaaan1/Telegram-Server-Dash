@@ -8,11 +8,15 @@ import logging
 
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from bot.keyboards import make_home_keyboard, make_monitor_keyboard
+from bot.nav import push_screen
+from bot.services import Services, log_user_action
 from bot.texts import Messages
-from config import AppSettings, load_server_registry, load_settings
+from config import load_server_registry, load_settings
+from config.servers import ServerConfig
 from core.probe import (
     collect_cpu_details,
     collect_disk_details,
@@ -23,11 +27,6 @@ from core.ssh import create_ssh_pool
 
 router = Router()
 logger = logging.getLogger(__name__)
-
-
-def _is_allowed(user_id: int, settings: AppSettings) -> bool:
-    """Check if user ID is in allowed admin list."""
-    return bool(settings.admin_user_ids) and user_id in settings.admin_user_ids
 
 
 def _format_bytes(b: int) -> str:
@@ -51,48 +50,44 @@ def _make_bar(percentage: float, width: int = 10) -> str:
         return f"{'🟩' * filled}{'⬜' * empty}"
 
 
-async def _load_settings_and_servers(message: Message):
-    """Load settings and enabled servers, check access."""
-    settings, config_path = load_settings()
-
-    if not message.from_user or (
-        settings.admin_user_ids and not _is_allowed(message.from_user.id, settings)
-    ):
-        await message.answer(Messages.ACCESS_DENIED)
-        return None, None
-
+async def _load_enabled_servers(message: Message) -> dict[str, ServerConfig] | None:
+    """Load servers enabled in the registry; access control runs in middleware."""
+    _settings, config_path = load_settings()
     registry = load_server_registry(config_path)
     enabled = registry.get_enabled_servers()
     if not enabled:
         await message.answer(
             "ℹ️ Tidak ada server yang dikonfigurasi.", reply_markup=make_home_keyboard()
         )
-        return None, None
-    return settings, enabled
+        return None
+    return enabled
 
 
 @router.message(Command("monitor"))
 @router.message(F.text == Messages.MENU_MONITOR)
-async def cmd_monitor(message: Message) -> None:
+async def cmd_monitor(message: Message, state: FSMContext, services: Services) -> None:
     """Show monitor submenu."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "monitor")
     await message.answer(
         "📈 <b>System Monitor</b>\n\nPilih monitoring yang ingin dilihat:",
         reply_markup=make_monitor_keyboard(),
     )
+    await log_user_action(services, message, command="/monitor", action="monitor.menu")
 
 
 @router.message(Command("cpu"))
 @router.message(F.text == Messages.MENU_CPU)
-async def cmd_cpu(message: Message) -> None:
+async def cmd_cpu(message: Message, state: FSMContext, services: Services) -> None:
     """Show detailed CPU information."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "cpu")
     pool = create_ssh_pool(enabled)
     lines = [Messages.CPU_HEADER]
 
@@ -129,16 +124,18 @@ async def cmd_cpu(message: Message) -> None:
         await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
+    await log_user_action(services, message, command="/cpu", action="monitor.cpu")
 
 
 @router.message(Command("mem"))
 @router.message(F.text == Messages.MENU_MEMORY)
-async def cmd_memory(message: Message) -> None:
+async def cmd_memory(message: Message, state: FSMContext, services: Services) -> None:
     """Show detailed memory information."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "memory")
     pool = create_ssh_pool(enabled)
     lines = [Messages.MEMORY_HEADER]
 
@@ -183,16 +180,18 @@ async def cmd_memory(message: Message) -> None:
         await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
+    await log_user_action(services, message, command="/mem", action="monitor.memory")
 
 
 @router.message(Command("net"))
 @router.message(F.text == Messages.MENU_NETWORK)
-async def cmd_network(message: Message) -> None:
+async def cmd_network(message: Message, state: FSMContext, services: Services) -> None:
     """Show detailed network information."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "network")
     pool = create_ssh_pool(enabled)
     lines = [Messages.NETWORK_HEADER]
 
@@ -235,16 +234,18 @@ async def cmd_network(message: Message) -> None:
         await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
+    await log_user_action(services, message, command="/net", action="monitor.network")
 
 
 @router.message(Command("disk"))
 @router.message(F.text == Messages.MENU_DISK)
-async def cmd_disk(message: Message) -> None:
+async def cmd_disk(message: Message, state: FSMContext, services: Services) -> None:
     """Show detailed disk information."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "disk")
     pool = create_ssh_pool(enabled)
     lines = [Messages.DISK_HEADER]
 
@@ -293,16 +294,18 @@ async def cmd_disk(message: Message) -> None:
         await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
+    await log_user_action(services, message, command="/disk", action="monitor.disk")
 
 
 @router.message(Command("proc"))
 @router.message(F.text == Messages.MENU_PROCESSES)
-async def cmd_processes(message: Message) -> None:
+async def cmd_processes(message: Message, state: FSMContext, services: Services) -> None:
     """Show top processes by CPU and memory."""
-    _, enabled = await _load_settings_and_servers(message)
+    enabled = await _load_enabled_servers(message)
     if not enabled:
         return
 
+    await push_screen(state, "processes")
     pool = create_ssh_pool(enabled)
     lines = [Messages.PROCESSES_HEADER]
 
@@ -348,3 +351,4 @@ async def cmd_processes(message: Message) -> None:
         await asyncio.gather(*(c.close() for c in pool.values()), return_exceptions=True)
 
     await message.answer("\n".join(lines), reply_markup=make_monitor_keyboard())
+    await log_user_action(services, message, command="/proc", action="monitor.processes")

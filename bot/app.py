@@ -10,6 +10,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from bot.middleware import AccessMiddleware
+from bot.services import Services, build_services
 from config import AppSettings, load_server_registry, load_settings
 from db import init_database
 
@@ -24,18 +26,23 @@ def create_bot(token: str) -> Bot:
     )
 
 
-def build_dispatcher(settings: AppSettings) -> Dispatcher:
-    """Build and configure the dispatchers with all routers."""
+def build_dispatcher(settings: AppSettings, services: Services) -> Dispatcher:
+    """Build and configure the dispatcher with middleware and all routers."""
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    from handlers import common, echo, monitor, navigation, status
+    dp.message.outer_middleware(AccessMiddleware(services))
 
+    from handlers import admin, common, critical, echo, monitor, navigation, status
+
+    # Navigation routers come first so Cancel/Back/Home always win over FSM handlers.
     dp.include_router(common.router)
+    dp.include_router(navigation.router)
+    dp.include_router(critical.router)
+    dp.include_router(admin.router)
     dp.include_router(status.router)
     dp.include_router(monitor.router)
     dp.include_router(echo.router)
-    dp.include_router(navigation.router)
 
     return dp
 
@@ -48,10 +55,12 @@ def build_app() -> tuple[Bot, Dispatcher, AppSettings]:
         raise FileNotFoundError(msg)
 
     load_server_registry(config_path)
-    init_database(settings.database_path)
+    db = init_database(settings.database_path)
+    services = build_services(settings, db)
 
-    dp = build_dispatcher(settings)
+    dp = build_dispatcher(settings, services)
     bot = create_bot(settings.bot_token)
+    services.audit.attach_bot(bot)
 
     return bot, dp, settings
 
